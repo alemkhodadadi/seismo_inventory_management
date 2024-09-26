@@ -1,6 +1,6 @@
 
 import pandas as pd
-filepath='/home/khodadad/files/pool/codes/inventory/dashapp/data/pool.xlsx'
+filepath='data\pool.xlsx'
 import os
 from datetime import datetime
 import openpyxl

@@ -62,11 +62,13 @@ def layout():
 
 def render_content(tab):
     projects = get_projects()
+    print('kir toosh:', projects.groupby('Projects').cumcount() + 1)
     print("projectttttt:", projects)
     projects['pickup_date'] = pd.to_datetime(projects['pickup_date']).dt.strftime('%Y-%m-%d')
     projects['return_date'] = pd.to_datetime(projects['return_date']).dt.strftime('%Y-%m-%d')
-
-    projects_filtered = projects
+    projects_timeline = projects.copy()
+    projects_timeline['repeat'] = projects_timeline.groupby('Projects').cumcount() + 1
+    projects_timeline['Name'] = projects_timeline.apply(lambda x: f"{x['Projects']} {x['repeat']-1}" if x['repeat'] > 1 else x['Projects'], axis=1)
 
     if tab == 'table':
         return html.Div(
@@ -111,11 +113,11 @@ def render_content(tab):
     elif tab == 'timeline-total':
         return dcc.Graph(
             figure=create_gantt(
-                data=projects, 
-                parameter_name="Projects", 
+                data=projects_timeline, 
+                parameter_name="Name", 
                 start_column_name="pickup_date", 
                 end_column_name="return_date",
-                color="Projects",
+                color="Name",
                 labels={'Sensor_Type': 'Sensor Type'},
             ),
         ),
@@ -167,11 +169,11 @@ def render_content(tab):
                     children=(
                         dcc.Graph(
                             figure=create_gantt(
-                                data=projects, 
-                                parameter_name="Projects",
+                                data=projects_timeline, 
+                                parameter_name="Name",
                                 start_column_name="pickup_date",
                                 end_column_name="return_date",
-                                color="Projects",
+                                color="Name",
                                 labels={'Sensor_Type': 'Sensor Type'},
                             ),
                         ),
