@@ -1,15 +1,17 @@
 from dash import html, register_page, dcc, get_app, State, callback, Output, Input
 import plotly.express as px
 import dash_bootstrap_components as dbc
-from data.data import get_projects, get_datepicker_dates, update_project
+from data.data import get_projects, get_datepicker_dates, update_project, get_projects_table, get_inventory_instruments_number, get_projects_timeline
 import pandas as pd
 import dash_ag_grid as dag
-from view.components.gantt import create_gantt
+from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability
+
 register_page(__name__, path="/")  # Register the home page at the root path
 
 tabs_styles = {
     'height': '44px'
 }
+
 tab_style = {
     'borderBottom': '1px solid #d6d6d6',
     'padding': '6px',
@@ -37,8 +39,8 @@ def layout():
                     selected_style=tab_selected_style
                 ),
                 dcc.Tab(
-                    label='Timeline (total)', 
-                    value='timeline-total', 
+                    label='Inventory Availability', 
+                    value='inventory-availability', 
                     style=tab_style, 
                     selected_style=tab_selected_style
                 ),
@@ -61,15 +63,14 @@ def layout():
               [Input('projects-tabs', 'value')])
 
 def render_content(tab):
-    projects = get_projects()
-    print('kir toosh:', projects.groupby('Projects').cumcount() + 1)
-    print("projectttttt:", projects)
-    projects['pickup_date'] = pd.to_datetime(projects['pickup_date']).dt.strftime('%Y-%m-%d')
-    projects['return_date'] = pd.to_datetime(projects['return_date']).dt.strftime('%Y-%m-%d')
-    projects_timeline = projects.copy()
-    projects_timeline['repeat'] = projects_timeline.groupby('Projects').cumcount() + 1
-    projects_timeline['Name'] = projects_timeline.apply(lambda x: f"{x['Projects']} {x['repeat']-1}" if x['repeat'] > 1 else x['Projects'], axis=1)
-
+    
+    projects_table = get_projects_table()
+    projects_timeline = get_projects_timeline()
+    inventory_numbers = get_inventory_instruments_number()
+    print("get_inventory_instruments_number:",inventory_numbers)
+    time_slots = timeslots_for_projects(projects_table)
+    availability_table = generate_instrument_availability(inventory_numbers, projects_table, time_slots)
+    print("availability_table results", availability_table)
     if tab == 'table':
         return html.Div(
             [
@@ -100,8 +101,8 @@ def render_content(tab):
                 dbc.Row([
                     dag.AgGrid(
                         id="table-projects-editable",
-                        rowData=projects.to_dict("records"),
-                        columnDefs=[{"field": i} for i in projects.columns],
+                        rowData=projects_table.to_dict("records"),
+                        columnDefs=[{"field": i} for i in projects_table.columns],
                         defaultColDef={"filter": True, 'editable': True},
                         dashGridOptions={"pagination": True},
                         style={"minHeight":"800px"},
@@ -110,16 +111,9 @@ def render_content(tab):
                 ])
             ]
         )
-    elif tab == 'timeline-total':
+    elif tab == 'inventory-availability':
         return dcc.Graph(
-            figure=create_gantt(
-                data=projects_timeline, 
-                parameter_name="Name", 
-                start_column_name="pickup_date", 
-                end_column_name="return_date",
-                color="Name",
-                labels={'Sensor_Type': 'Sensor Type'},
-            ),
+            figure=create_heatmap(availability_table)
         ),
     elif tab == 'timeline-this-year':
         return html.Div(
@@ -138,7 +132,7 @@ def render_content(tab):
                                                 options=[
                                                     {'label': 'None', 'value': 'none'},
                                                     {'label': 'Dates', 'value': 'option_dates'},
-                                                    {'label': 'Date Range', 'value': 'date_range'}
+                                                    #{'label': 'Date Range', 'value': 'date_range'}
                                                 ],
                                                 value='none',  # Default value
                                                 placeholder="Select an option",
@@ -156,7 +150,7 @@ def render_content(tab):
                         ),
                         dbc.Col(
                             dbc.Button(
-                                "Apply", id="apply-date-filter", className="me-2", n_clicks=0
+                                "Apply", id="apply-date-filter", className="me-2", n_clicks=0, disabled=True
                             ),
                             width=2
                         )
@@ -183,28 +177,56 @@ def render_content(tab):
         )
     
 @callback(
+    Output('apply-date-filter', 'disabled'),
     [
-        Output('custom-timeline', 'children')  # Second output
+        Input('start-date-picker', 'date'),
+        Input('end-date-picker', 'date')
+    ]
+)
+def make_apply_btn_active(start, end):
+    return False
+
+
+@callback(
+    [
+        Output('custom-timeline', 'children'),  # Second output
+        Output('apply-date-filter', 'disabled', allow_duplicate=True)
     ],
     Input('apply-date-filter', 'n_clicks'),
     State('start-date-picker', 'date'),   # Get the value of the start date
-    State('end-date-picker', 'date')      # Get the value of the end date
+    State('end-date-picker', 'date'),      # Get the value of the end date
+    prevent_initial_call=True
+    
 )
 def check_dates(n_clicks, from_date, to_date):
+    print('apply clicked:')
+    # Convert string dates to Timestamps
     start_period = pd.Timestamp(from_date)
     end_period = pd.Timestamp(to_date)
-    projects = get_projects()
-    projects_filtered = projects[(projects['pickup_date'] <= end_period) & (projects['return_date'] >= start_period)]
+
+    # Assuming `get_projects_timeline()` returns a DataFrame
+    projects_timeline = get_projects_timeline()
+
+    # Ensure that pickup_date and return_date are in datetime format
+    projects_timeline['pickup_date'] = pd.to_datetime(projects_timeline['pickup_date'])
+    projects_timeline['return_date'] = pd.to_datetime(projects_timeline['return_date'])
+
+    # Filter the DataFrame based on the date range
+    projects_timeline = projects_timeline[
+        (projects_timeline['pickup_date'] <= end_period) & 
+        (projects_timeline['return_date'] >= start_period)
+    ]
+
     return dcc.Graph(
         figure=create_gantt(
-            data=projects_filtered, 
-            parameter_name="Projects", 
+            data=projects_timeline, 
+            parameter_name="Name", 
             start_column_name="pickup_date", 
             end_column_name="return_date",
-            color="Projects",
+            color="Name",
             labels={'Sensor_Type': 'Sensor Type'},
         ),
-    ),
+    ), True
     
     
 @callback(
@@ -213,9 +235,7 @@ def check_dates(n_clicks, from_date, to_date):
 )
 
 def display_date_picker(selected_option):
-    print('inside display_date_picker')
     earliest_day, latest_day, today = get_datepicker_dates()
-    print('dashagh', earliest_day, latest_day)
     if selected_option == 'none':
         return html.Div()  # No date picker if "None" is selected
     
@@ -294,8 +314,6 @@ def track_table_changes(event, changes):
     prevent_initial_call=True
 )
 def update_table(n_clicks, changes):
-    print("c_cliskc:", n_clicks)
-    print("tabledata:", type(changes), changes)
     if n_clicks > 0:
         response = update_project(changes, "Projects")
         toast = {

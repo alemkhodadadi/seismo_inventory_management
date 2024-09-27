@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import ThemeChangerAIO, template_from_url
 from view.layout.sidebar import sidebar 
 from view.layout.content import content
-from view.components.toast import global_toast
+from view.utils import global_toast
 
 def create_layout(df):
     layout = dbc.Container(

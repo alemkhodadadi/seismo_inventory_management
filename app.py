@@ -20,4 +20,5 @@ app = Dash(__name__, use_pages=True, pages_folder='view/pages', suppress_callbac
 app.layout = create_layout('kd')
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(host='0.0.0.0', port=8050, debug=True)
+    # app.run_server(debug=True)

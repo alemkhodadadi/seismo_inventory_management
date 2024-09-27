@@ -1,16 +1,29 @@
 
 import pandas as pd
-filepath='data\pool.xlsx'
 import os
 from datetime import datetime
 import openpyxl
+filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pool.xlsx')
 
 def get_projects():
     projects = pd.read_excel(filepath, sheet_name='Projects')
-    print("fuck project:", projects)
     projects['pickup_date'] = pd.to_datetime(projects['pickup_date'])
     projects['return_date'] = pd.to_datetime(projects['return_date'])
     return projects.copy()
+
+def get_projects_table():
+    projects = get_projects()
+    projects['pickup_date'] = pd.to_datetime(projects['pickup_date']).dt.strftime('%Y-%m-%d')
+    projects['return_date'] = pd.to_datetime(projects['return_date']).dt.strftime('%Y-%m-%d')
+    return projects
+
+def get_projects_timeline():
+    projects_timeline = get_projects()
+    projects_timeline['pickup_date'] = pd.to_datetime(projects_timeline['pickup_date']).dt.strftime('%Y-%m-%d')
+    projects_timeline['return_date'] = pd.to_datetime(projects_timeline['return_date']).dt.strftime('%Y-%m-%d')
+    projects_timeline['repeat'] = projects_timeline.groupby('Projects').cumcount() + 1
+    projects_timeline['Name'] = projects_timeline.apply(lambda x: f"{x['Projects']} {x['repeat']-1}" if x['repeat'] > 1 else x['Projects'], axis=1)
+    return projects_timeline
 
 def get_inventory():
     inventory = pd.read_excel(filepath, sheet_name='Inventory')
@@ -18,7 +31,7 @@ def get_inventory():
 
 def get_inventory_instruments_number():
     inventory = get_inventory()
-    summarized_inventory = inventory.groupby('ID', as_index=False).agg({'Number': 'sum'})
+    summarized_inventory = inventory.groupby('ID', as_index=False).agg({'Number_sum': 'sum'})
     return summarized_inventory
 
 def get_repairs():
@@ -33,11 +46,10 @@ def get_datepicker_dates():
     latest_return_date = latest_return_date + pd.DateOffset(years=1)
     today = datetime.now()
     return earliest_pickup_date.strftime('%Y-%m-%d'), latest_return_date.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d') 
- 
+
 def create_project(project_data):
     try:
         # Check if the file exists before trying to read it
-        print('trying to create project')
         if os.path.exists(filepath):
             # Load the existing 'Projects' sheet into a DataFrame
             projects_df = pd.read_excel(filepath, sheet_name='Projects', engine='openpyxl')
@@ -45,18 +57,14 @@ def create_project(project_data):
             # If the file doesn't exist, create an empty DataFrame with the columns similar to project_data
             projects_df = pd.DataFrame(columns=project_data.keys())
         
-        print('project_df is:', projects_df)
         # Convert project_data (dictionary) into a DataFrame row
         new_row = pd.DataFrame([project_data])
         
         # Append the new project row to the existing DataFrame
         updated_projects = pd.concat([projects_df, new_row], ignore_index=True)
-        print('before excelwriter...')
         # Save the updated DataFrame back to the same Excel file
         with pd.ExcelWriter(filepath, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
             updated_projects.to_excel(writer, sheet_name='Projects', index=False)
-
-        print('after excelwriter...')
         # Success response
         return {"status": "success", "message": "Project created successfully!"}
     
