@@ -13,7 +13,7 @@ def sidebar():
             dbc.Nav(
                 [
                     dbc.NavLink("Projects", href="/", active="exact"),
-                    dbc.NavLink("Page 1", href="/page-1", active="exact"),
+                    dbc.NavLink("Inventory", href="/inventory", active="exact"),
                     dbc.NavLink("Page 2", href="/page-2", active="exact"),
                 ],
                 vertical=True,

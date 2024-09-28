@@ -6,7 +6,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import datetime
 import pandas as pd
-# pd.set_option('display.max_rows', None)
+import numpy as np
+
 def create_gantt(
         data, 
         parameter_name, 
@@ -50,27 +51,30 @@ def create_gantt(
     # fig.show()
     return fig
 
-def create_heatmap(availability_df):
-    # Create a pivot table to structure the data for the heatmap
-    print("kose nanat 3:", availability_df)
-    availability_df['Availability'] = (availability_df['Available'] / availability_df['Total']) * 100
-    pivot_table = availability_df.pivot_table(index='Instrument', columns='Time Slot', values='Availability')
-    print('fucking availability is:', pivot_table)
+def create_heatmap(pivot_table, title):
+    availability_text = np.where(
+        pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
+        "-",  # Display "-" if Total is 0 (represented by -1)
+        np.round(pivot_table.values, 0).astype(int).astype(str)  # Round to nearest integer and convert to string
+    )
     # Create the heatmap
     fig = go.Figure(data=go.Heatmap(
         z=pivot_table.values,  # Availability values
         x=pivot_table.columns,  # Time slots (x-axis)
         y=pivot_table.index,  # Instruments (y-axis)
-        text=pivot_table.values,  # Show availability values as text on the heatmap
-        texttemplate="%{text:.1f}%",
-        textfont={"size": 12},
-        colorscale="Viridis",  # Color scale for availability (can be changed),
+        text=availability_text,  # Show availability values as text on the heatmap
+        texttemplate="%{text}",
+        textfont={"size": 9},
+        hoverinfo='text',  # Only show custom hover text
+        hovertemplate='Instrument: %{y}<br>Time Slot: %{x}<br>Availability: %{text}<extra></extra>',  # Customize hover text
+        #colorscales=Blackbody,Bluered,Blues,Cividis,Earth,Electric,Greens,Greys,Hot,Jet,Picnic,Portland,Rainbow,RdBu,Reds,Viridis,YlGnBu,YlOrRd.
+        colorscale="YlOrRd",  # Color scale for availability (can be changed),
         zmin=0,  # Minimum color value (0% availability)
         zmax=100  # Maximum color value (100% availability)
     ))
 
     fig.update_layout(
-        title='Instrument Availability Heatmap',
+        title=title,
         xaxis_nticks=36,
         autosize=True,
         height=1000,
@@ -79,6 +83,24 @@ def create_heatmap(availability_df):
 
     return fig
 
+def create_pivot_table_for_heatmap(data, mode):
+    # Create a pivot table to structure the data for the heatmap
+    if mode == 'Occupation':
+        data['Occupation'] = np.where(
+            data['Total'] == 0, 
+            -1,  # NaN will be replaced by "-" in the display
+            (1 - (data['Available'] / data['Total'])) * 100  # Calculate occupation as the opposite of availability
+        )
+        pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Occupation')
+    else:  # Default case for 'availability'
+        data['Availability'] = np.where(
+            data['Total'] == 0, 
+            -1,  # NaN will be replaced by "-" in the display
+            (data['Available'] / data['Total']) * 100
+        )
+        pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Availability')
+    
+    return pivot_table
 
 # Define the global toast as a function so it can be reused
 def global_toast():
@@ -101,12 +123,8 @@ def global_toast():
 
 
 def timeslots_for_projects(projects):
-    # Convert pickup_date and return_date to datetime if they aren't already
-    projects['pickup_date'] = pd.to_datetime(projects['pickup_date'])
-    projects['return_date'] = pd.to_datetime(projects['return_date'])
-    
     # Extract and combine the pickup and return dates, then drop NaN values
-    dates = pd.concat([projects['pickup_date'], projects['return_date']]).dropna()
+    dates = pd.concat([pd.to_datetime(projects['pickup_date']), pd.to_datetime(projects['return_date'])]).dropna()
     
     # Remove duplicates and sort the dates
     unique_dates = sorted(dates.drop_duplicates())
@@ -125,7 +143,6 @@ def generate_instrument_availability(inventory, projects, time_slots):
         if instrument_id:
             # Get the total number of instruments for each instrument_id from the inventory
             total_instruments = int(inventory[inventory['ID'] == instrument_id]['Number_sum'].values[0])
-            print("print1:", total_instruments)
             # Iterate over each time slot
             for start, end in time_slots:
                 # Filter projects that are active during the current time slot

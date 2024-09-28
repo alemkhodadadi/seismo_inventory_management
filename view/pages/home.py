@@ -1,10 +1,9 @@
 from dash import html, register_page, dcc, get_app, State, callback, Output, Input
-import plotly.express as px
 import dash_bootstrap_components as dbc
 from data.data import get_projects, get_datepicker_dates, update_project, get_projects_table, get_inventory_instruments_number, get_projects_timeline
 import pandas as pd
 import dash_ag_grid as dag
-from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability
+from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability, create_pivot_table_for_heatmap
 
 register_page(__name__, path="/")  # Register the home page at the root path
 
@@ -46,7 +45,7 @@ def layout():
                 ),
                 dcc.Tab(
                     label='Timeline (This Year)', 
-                    value='timeline-this-year', 
+                    value='timeline', 
                     style=tab_style, 
                     selected_style=tab_selected_style
                 ),
@@ -63,14 +62,12 @@ def layout():
               [Input('projects-tabs', 'value')])
 
 def render_content(tab):
-    
+    projects_pure = get_projects()
     projects_table = get_projects_table()
     projects_timeline = get_projects_timeline()
     inventory_numbers = get_inventory_instruments_number()
-    print("get_inventory_instruments_number:",inventory_numbers)
     time_slots = timeslots_for_projects(projects_table)
-    availability_table = generate_instrument_availability(inventory_numbers, projects_table, time_slots)
-    print("availability_table results", availability_table)
+    availability_table = generate_instrument_availability(inventory_numbers, projects_pure, time_slots)
     if tab == 'table':
         return html.Div(
             [
@@ -102,7 +99,9 @@ def render_content(tab):
                     dag.AgGrid(
                         id="table-projects-editable",
                         rowData=projects_table.to_dict("records"),
-                        columnDefs=[{"field": i} for i in projects_table.columns],
+                        columnDefs=[
+                            {"field": i} for i in projects_table.columns
+                        ],
                         defaultColDef={"filter": True, 'editable': True},
                         dashGridOptions={"pagination": True},
                         style={"minHeight":"800px"},
@@ -112,10 +111,37 @@ def render_content(tab):
             ]
         )
     elif tab == 'inventory-availability':
-        return dcc.Graph(
-            figure=create_heatmap(availability_table)
-        ),
-    elif tab == 'timeline-this-year':
+        heatmap_data = create_pivot_table_for_heatmap(availability_table, 'Availability')
+        return html.Div(
+            [
+                html.Hr(),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Dropdown(
+                                id='dropdown-instruments-availability',
+                                options=[
+                                    {'label': 'Availability', 'value': 'Availability'},
+                                    {'label': 'Occupation', 'value': 'Occupation'},
+                                ],
+                                value='Availability',  # Default value
+                            ),
+                            width=3,
+                        ),
+                    ]
+                ),
+                html.Hr(),
+                html.Div(
+                    id="heatmap-container",
+                    children=[
+                        dcc.Graph(
+                            figure=create_heatmap(heatmap_data, "Availability")
+                        ),
+                    ]
+                )
+            ]
+        )
+    elif tab == 'timeline':
         return html.Div(
             [
                 html.Hr(),
@@ -228,6 +254,24 @@ def check_dates(n_clicks, from_date, to_date):
         ),
     ), True
     
+
+@callback(
+    Output('heatmap-container', 'children'),
+    [Input('dropdown-instruments-availability', 'value')]
+)
+def change_heatmap_mode(selected_option):
+    print("kir tooshss", selected_option)
+    projects_table = get_projects_table()
+    projects_pure = get_projects()
+    inventory_numbers = get_inventory_instruments_number()
+    time_slots = timeslots_for_projects(projects_table)
+    availability_table = generate_instrument_availability(inventory_numbers, projects_pure, time_slots)
+    print("jfjf,", availability_table)
+    heatmap_data = create_pivot_table_for_heatmap(availability_table, selected_option)
+    return dcc.Graph(
+        figure=create_heatmap(heatmap_data, selected_option)
+    ),
+
     
 @callback(
     Output('dropdown-projects-date-content', 'children'),
@@ -332,6 +376,7 @@ def update_table(n_clicks, changes):
             }
             
         else:
+            print("error updating table:", response["status"])
             # Handle the error
             toast = {
                 'is_open': True, 

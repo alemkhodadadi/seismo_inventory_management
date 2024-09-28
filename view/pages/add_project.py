@@ -5,8 +5,8 @@ import dash_bootstrap_components as dbc
 from dash_bootstrap_components import Row, Col, Label, Input
 from datetime import datetime
 import pandas as pd
-from data.data import get_inventory_instruments_number, create_project
-register_page(__name__, path="/create-project", name="Create project")  # Register a page at /create-project
+from data.data import get_inventory_instruments_number, add_project
+register_page(__name__, path="/add-project", name="Add project")  # Register a page at /create-project
 
 
 layout = html.Div([
@@ -121,9 +121,10 @@ layout = html.Div([
     dash.Output('instruments-list', 'children'),
     [dash.Input('interval', 'n_intervals')]
 )
-def update_content(n_intervals):
+def show_instruments_list(n_intervals):
     if n_intervals == 0 or n_intervals == 1:
         instruments = get_inventory_instruments_number()  # Get the instruments DataFrame
+        print("halalala", instruments)
         # Assuming instruments is a DataFrame with columns 'ID' and 'Number'
         divs = [
             dbc.Row(
@@ -138,7 +139,7 @@ def update_content(n_intervals):
                 ],
                 className="mb-3 justify-content-between align-items-center",
             )
-            for ID, Number in zip(instruments['ID'], instruments['Number'])
+            for ID, Number in zip(instruments['ID'], instruments['Number_sum'])
         ]
 
 
@@ -229,7 +230,7 @@ def submit_form(n_clicks, name, leading_inst, partner_inst, pickup, returnd,
     }
 
     print("project_data is:", project_data)
-    response = create_project(project_data)
+    response = add_project(project_data)
     if response["status"] == "success":
         # Show success message
         toast = {
