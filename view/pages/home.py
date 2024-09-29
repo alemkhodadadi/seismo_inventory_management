@@ -1,6 +1,6 @@
 from dash import html, register_page, dcc, get_app, State, callback, Output, Input
 import dash_bootstrap_components as dbc
-from data.data import get_projects, get_datepicker_dates, update_project, get_projects_table, get_inventory_instruments_number, get_projects_timeline
+from data.data import get_projects, get_datepicker_dates, update_table, get_projects_table, get_inventory_instruments_number, get_projects_timeline
 import pandas as pd
 import dash_ag_grid as dag
 from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability, create_pivot_table_for_heatmap
@@ -23,6 +23,14 @@ tab_selected_style = {
     'color': 'white',
     'padding': '6px'
 }
+
+cell_style = {
+    "textAlign": "center", 
+    "display": "flex", 
+    "justifyContent": "center", 
+    "alignItems": "center",
+    "borderRight": "1px solid lightgray",
+}  # Horizontally and vertically center the content
 
 def layout():
     return html.Div([
@@ -85,7 +93,15 @@ def render_content(tab):
                             ),
                             dbc.Button(
                                 "Update Table",
-                                id="update-table-button",
+                                id="update-table-button-projects",
+                                color="dark",  # Bootstrap button style
+                                className="me-1",
+                                disabled=True,
+                                n_clicks=0
+                            ),
+                            dbc.Button(
+                                "Delete selected rows",
+                                id="delete-table-button-projects",
                                 color="dark",  # Bootstrap button style
                                 className="me-1",
                                 disabled=True,
@@ -96,15 +112,43 @@ def render_content(tab):
                     ]
                 ),
                 dbc.Row([
-                    dag.AgGrid(
-                        id="table-projects-editable",
-                        rowData=projects_table.to_dict("records"),
-                        columnDefs=[
-                            {"field": i} for i in projects_table.columns
-                        ],
-                        defaultColDef={"filter": True, 'editable': True},
-                        dashGridOptions={"pagination": True},
-                        style={"minHeight":"800px"},
+                    html.Div(
+                        id="table-projects-editable-container",
+                        children=[
+                            dag.AgGrid(
+                                id="table-projects-editable",
+                                rowData=projects_table.to_dict("records"),
+                                columnDefs=
+                                
+                                [
+                                    # its the code to create checkbox at the first column
+                                    {
+                                        "field": "Delete", 
+                                        "checkboxSelection": True, 
+                                        "headerCheckboxSelection": True, 
+                                        "width": 50 
+                                    },
+                                ]+
+                                [
+                                    {
+                                        "field": column, 
+                                        "cellStyle": cell_style, 
+                                        "headerStyle": cell_style, 
+                                        "maxWidth":150
+                                    } 
+                                    if i>4 else 
+                                    {
+                                        "field": column, 
+                                        "cellStyle": cell_style, 
+                                        "headerStyle": cell_style
+                                    } 
+                                    for i, column in enumerate(projects_table.columns)
+                                ],
+                                defaultColDef={"filter": True, 'editable': True},
+                                dashGridOptions={"pagination": True, "rowSelection":"multiple"},
+                                style={"minHeight":"800px"},
+                            ),
+                        ]
                     ),
                     dcc.Store(id='table-projects-editable-changes', data=[]),
                 ])
@@ -202,6 +246,105 @@ def render_content(tab):
             ]
         )
     
+
+@callback(
+    Output("delete-table-button-projects", "disabled"),
+    Input("table-projects-editable", "selectedRows"),
+)
+def selected(selectedrows):
+    if selectedrows is not None and len(selectedrows) > 0:
+        return False
+    return True
+
+@callback(
+    [
+        Output('toast-store', 'data', allow_duplicate=True),
+        Output('table-projects-editable-container', 'children', allow_duplicate=True),
+        Output("delete-table-button-projects", "disabled", allow_duplicate=True),
+    ],
+    Input("delete-table-button-projects", "n_clicks"),
+    State("table-projects-editable", "selectedRows"),
+    prevent_initial_call=True
+)
+def delete_selected_rows(n_clicks, selected_rows):
+    toast = {
+        'is_open': False, 
+        'message': '', 
+        'header': 'Success :)', 
+        'icon': 'success'
+    }
+    disabled = True
+    
+    if n_clicks > 0 and len(selected_rows)>0:
+        projects_data = get_projects_table()
+        print("you motherfuckier", projects_data)
+        print('selected rows in function:', selected_rows)
+        changes = []
+        for row in selected_rows:
+            row_id = projects_data[
+                (projects_data['Projects'] == row['Projects']) & 
+                (projects_data['Leading Institution'] == row['Leading Institution']) 
+            ].index
+            if not row_id.empty:  # Check if we found a matching row
+                change = {"rowIndex": row_id[0], "status": "delete", "row": row}  # Use the first matching index
+                changes.append(change)  # Append to the list of changes
+        response = update_table(changes, "Projects")
+        if response["status"] == "success":
+            # Show success message
+            toast = {
+                'is_open': True, 
+                'message': 'Table updated successfully!', 
+                'header': 'Success :)', 
+                'icon': 'success'
+            }
+            
+        else:
+            print("error updating table:", response["status"])
+            # Handle the error
+            toast = {
+                'is_open': True, 
+                'message': 'There is something wrong!', 
+                'header': 'Failure :(', 
+                'icon': 'failure'
+            }
+            disabled = False
+        
+    projects_table_after_update = get_projects_table()
+    table = dag.AgGrid(
+        id="table-projects-editable",
+        rowData=projects_table_after_update.to_dict("records"),
+        columnDefs=
+        
+        [
+            # its the code to create checkbox at the first column
+            {
+                "field": "Delete", 
+                "checkboxSelection": True, 
+                "headerCheckboxSelection": True, 
+                "width": 50 
+            },
+        ]+
+        [
+            {
+                "field": column, 
+                "cellStyle": cell_style, 
+                "headerStyle": cell_style, 
+                "maxWidth":150
+            } 
+            if i>4 else 
+            {
+                "field": column, 
+                "cellStyle": cell_style, 
+                "headerStyle": cell_style
+            } 
+            for i, column in enumerate(projects_table_after_update.columns)
+        ],
+        defaultColDef={"filter": True, 'editable': True},
+        dashGridOptions={"pagination": True, "rowSelection":"multiple"},
+        style={"minHeight":"800px"},
+    ),
+    return toast, table, disabled
+
 @callback(
     Output('apply-date-filter', 'disabled'),
     [
@@ -324,7 +467,7 @@ def display_date_picker(selected_option):
 @callback(
     [
         Output('table-projects-editable-changes', 'data'),
-        Output('update-table-button', 'disabled', allow_duplicate=True),
+        Output('update-table-button-projects', 'disabled', allow_duplicate=True),
     ],
     Input('table-projects-editable', 'cellValueChanged'),
     State('table-projects-editable-changes', 'data'),
@@ -351,21 +494,22 @@ def track_table_changes(event, changes):
 @callback(
     [
         Output('toast-store', 'data', allow_duplicate=True),
-        Output('update-table-button', 'disabled', allow_duplicate=True)
+        Output('update-table-button-projects', 'disabled', allow_duplicate=True)
     ],
-    Input('update-table-button', 'n_clicks'),
+    Input('update-table-button-projects', 'n_clicks'),
     State('table-projects-editable-changes', 'data'),
     prevent_initial_call=True
 )
-def update_table(n_clicks, changes):
+def update_projects_table(n_clicks, changes):
+    toast = {
+        'is_open': False, 
+        'message': '', 
+        'header': 'Success :)', 
+        'icon': 'success'
+    }
+    disabled = True
     if n_clicks > 0:
-        response = update_project(changes, "Projects")
-        toast = {
-            'is_open': False, 
-            'message': '', 
-            'header': 'Success :)', 
-            'icon': 'success'
-        }
+        response = update_table(changes, "Projects")
         if response["status"] == "success":
             # Show success message
             toast = {
@@ -384,7 +528,6 @@ def update_table(n_clicks, changes):
                 'header': 'Failure :(', 
                 'icon': 'failure'
             }
-
+            disabled = False
         
-        return toast, True
-    
+    return toast, disabled

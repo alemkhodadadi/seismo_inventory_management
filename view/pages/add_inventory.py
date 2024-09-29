@@ -152,7 +152,7 @@ def toggle_name_and_id(selected_option):
 
 @callback(
     
-    [dash.Output('kirekhar2', 'children')],  
+    dash.Output('toast-store', 'data'), 
     
     dash.Input('submit-form', 'n_clicks'),
     dash.State('instrument-dropdown', 'value'),   
@@ -166,44 +166,48 @@ def toggle_name_and_id(selected_option):
 )
 def submit_form(n_clicks, selected_option, name_input, id_input, number, owner, 
     location):
-    print(n_clicks, selected_option, name_input, id_input, number, owner,location )
-    instruments = get_inventory_instruments_number()
-    if selected_option not in ["None", "New"]: 
-        Name = instruments.loc[instruments["ID"] == selected_option, "Instrument name"].values[0]
-        ID = selected_option
-    if selected_option == "New":
-        Name = name_input
-        ID = id_input
-    
-    # Create the new inventory row
-    inventory_row = {
-        'Instrument name': Name,
-        'ID': ID,
-        'Number': number, 
-        'Number_sum': number,
-        'Owner': owner,
-        'Storage location': location
+    toast = {
+        'is_open': False, 
+        'message': '', 
+        'header': 'Success', 
+        'icon': 'success'
     }
+    if n_clicks > 0:
+        instruments = get_inventory_instruments_number()
+        if selected_option not in ["None", "New"]: 
+            Name = instruments.loc[instruments["ID"] == selected_option, "Instrument name"].values[0]
+            ID = selected_option
+        if selected_option == "New":
+            Name = name_input
+            ID = id_input
+        
+        # Create the new inventory row
+        inventory_row = {
+            'Instrument name': Name,
+            'ID': ID,
+            'Number': number, 
+            'Number_sum': number,
+            'Owner': owner,
+            'Storage location': location
+        }
 
-    response = add_inventory(inventory_row)
-    return ''
-    # if response["status"] == "success":
-    #     # Show success message
-    #     toast = {
-    #         'is_open': True, 
-    #         'message': 'Project created successfully!', 
-    #         'header': 'Success', 
-    #         'icon': 'success'
-    #     }
-    #     return toast
-    # else:
-    #     # Handle the error
-    #     toast = {
-    #         'is_open': True, 
-    #         'message': 'There is something wrong!', 
-    #         'header': 'Failure', 
-    #         'icon': 'failure'
-    #     }
-    #     return toast
-
+        response = add_inventory(inventory_row)
+        if response["status"] == "success":
+            # Show success message
+            toast = {
+                'is_open': True, 
+                'message': 'Project created successfully!', 
+                'header': 'Success', 
+                'icon': 'success'
+            }
+        else:
+            # Handle the error
+            toast = { 
+                'is_open': True, 
+                'message': 'There is something wrong!', 
+                'header': 'Failure', 
+                'icon': 'failure'
+            }
+            
+    return toast
    

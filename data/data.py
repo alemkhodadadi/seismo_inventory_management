@@ -74,7 +74,7 @@ def add_project(project_data):
         return {"status": "error", "message": f"An error occurred: {str(e)}"}
     
 
-def update_project(changes, sheetname):
+def update_table(changes, sheetname):
     """
     Apply changes (update or delete) to a specific Excel sheet based on rowIndex.
 
@@ -86,7 +86,6 @@ def update_project(changes, sheetname):
     Returns:
         dict: A dictionary with "status" and "message" to indicate success or failure.
     """
-    print("mother fucking sheetname is:", sheetname, changes)
     try:
         # Load the workbook and get the specific sheet
         workbook = openpyxl.load_workbook(filepath)
@@ -133,9 +132,8 @@ def update_project(changes, sheetname):
                 print(f"Updated row {row_index} with data: {updated_row}")
 
             elif status == "delete":
-                # Clear the entire row (set all values to None)
-                for col in range(1, sheet.max_column + 1):
-                    sheet.cell(row=row_index, column=col).value = None
+                # Delete the entire row
+                sheet.delete_rows(row_index)
                 print(f"Deleted row {row_index}")
 
         # Save the updated workbook
