@@ -44,7 +44,6 @@ def create_gantt(
         autosize=True,
         minreducedwidth=800,
     )
-    print("createGantt called 5")
     # fig.show()
     return fig
 

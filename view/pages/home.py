@@ -277,8 +277,6 @@ def delete_selected_rows(n_clicks, selected_rows):
     
     if n_clicks > 0 and len(selected_rows)>0:
         projects_data = get_projects_table()
-        print("you motherfuckier", projects_data)
-        print('selected rows in function:', selected_rows)
         changes = []
         for row in selected_rows:
             row_id = projects_data[
@@ -368,7 +366,6 @@ def make_apply_btn_active(start, end):
     
 )
 def check_dates(n_clicks, from_date, to_date):
-    print('apply clicked:')
     # Convert string dates to Timestamps
     start_period = pd.Timestamp(from_date)
     end_period = pd.Timestamp(to_date)
@@ -403,13 +400,11 @@ def check_dates(n_clicks, from_date, to_date):
     [Input('dropdown-instruments-availability', 'value')]
 )
 def change_heatmap_mode(selected_option):
-    print("kir tooshss", selected_option)
     projects_table = get_projects_table()
     projects_pure = get_projects()
     inventory_numbers = get_inventory_instruments_number()
     time_slots = timeslots_for_projects(projects_table)
     availability_table = generate_instrument_availability(inventory_numbers, projects_pure, time_slots)
-    print("jfjf,", availability_table)
     heatmap_data = create_pivot_table_for_heatmap(availability_table, selected_option)
     return dcc.Graph(
         figure=create_heatmap(heatmap_data, selected_option)
@@ -474,7 +469,6 @@ def display_date_picker(selected_option):
     prevent_initial_call=True
 )
 def track_table_changes(event, changes):
-    print("ffffffftrack_table_changes")
     # If no change was detected, return the current data and keep the button disabled
     if event is None or len(event) == 0:
         return changes, True

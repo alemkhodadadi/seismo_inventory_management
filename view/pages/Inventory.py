@@ -132,7 +132,6 @@ def render_content(tab):
     prevent_initial_call=True
 )
 def track_table_changes(event, changes):
-    print("event track is:", event, "changes is:",changes)
     # If no change was detected, return the current data and keep the button disabled
 
     if event is None or len(event) == 0:

@@ -91,7 +91,6 @@ def update_table(changes, sheetname):
         workbook = openpyxl.load_workbook(filepath)
         if sheetname not in workbook.sheetnames:
             return {"status": "error", "message": f"Sheet '{sheetname}' not found in the Excel file."}
-        print("fucki 3")
         sheet = workbook[sheetname]
 
         # Apply each change from the "changes" list
@@ -137,7 +136,6 @@ def update_table(changes, sheetname):
                 print(f"Deleted row {row_index}")
 
         # Save the updated workbook
-        print("before saving fucking")
         workbook.save(filepath)
         return {"status": "success", "message": "Excel file updated successfully."}
 

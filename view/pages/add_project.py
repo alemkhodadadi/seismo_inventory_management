@@ -124,7 +124,6 @@ layout = html.Div([
 def show_instruments_list(n_intervals):
     if n_intervals == 0 or n_intervals == 1:
         instruments = get_inventory_instruments_number()  # Get the instruments DataFrame
-        print("halalala", instruments)
         # Assuming instruments is a DataFrame with columns 'ID' and 'Number'
         divs = [
             dbc.Row(
@@ -190,7 +189,6 @@ def submit_form(n_clicks, name, leading_inst, partner_inst, pickup, returnd,
     bms12, toughbook, zbook, igu_16hr3c, smartsoloCharger, 
     smartsoloRack, magnet, sdrx, minimus, espc3, gnss, cablebb, 
     mascot, gelbattery, fortis):
-    print("submoit pressede", n_clicks)
     # Convert the dates
     pickup_date = pd.Timestamp(pickup)
     return_date = pd.Timestamp(returnd)
@@ -229,7 +227,6 @@ def submit_form(n_clicks, name, leading_inst, partner_inst, pickup, returnd,
         'FORTIS': fortis
     }
 
-    print("project_data is:", project_data)
     response = add_project(project_data)
     if response["status"] == "success":
         # Show success message
