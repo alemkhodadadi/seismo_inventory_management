@@ -1,31 +1,31 @@
 # /pages/page2.py
-from dash import html, register_page, callback, dcc, callback_context
-import dash as dash
+from dash import html, register_page, callback, dcc
 from dash.exceptions import PreventUpdate
+import dash as dash
 import dash_bootstrap_components as dbc
 from dash_bootstrap_components import Row, Col, Label, Input
 from datetime import datetime
 import pandas as pd
 from data.data import get_inventory_instruments_number, add_to_table
-register_page(__name__, path="/add-instrument", name="Add instrument")  # Register a page at /add-instrument
+register_page(__name__, path="/add-repair", name="Add repair")  # Register a page at /add-repair
 
 
 layout = html.Div([
-    dcc.Interval(id='interval', interval=1, n_intervals=0, max_intervals=1),
+    dcc.Interval(id='interval_add_repair', interval=1, n_intervals=0, max_intervals=1),
     dbc.Form(
         dbc.Row(
             [
                 dbc.Col(
                     children=(
                         [
-                            html.H4("Add new instruments to inventory"),
+                            html.H4("Add new repair"),
                             html.Hr(),
                             dbc.Row(
                                 [
-                                    dbc.Label("Instrument", html_for="instrument-dropdown-inventory", width=6),
+                                    dbc.Label("Instrument ID*", html_for="instrument-dropdown-repair", width=6),
                                     dbc.Col(
                                         dcc.Dropdown(
-                                            id='instrument-dropdown-inventory',
+                                            id='instrument-dropdown-repair',
                                             options=[
                                                 
                                             ],
@@ -38,27 +38,11 @@ layout = html.Div([
                                 className="mb-3 justify-content-between align-items-center",
                             ),
                             dbc.Row(
-                                id="instrument-name-container",
-                                style={"display":"none"},
-                                children=[
-                                    dbc.Label("Name", html_for="instrument-name", width=6),
+                                [
+                                    dbc.Label("Number*", html_for="repair-number", width=6),
                                     dbc.Col(
                                         dbc.Input(
-                                            type="text", id="instrument-name", placeholder="Name of new instrument"
-                                        ),
-                                        width=6,
-                                    ),
-                                ],
-                                className="mb-3 justify-content-between align-items-center",
-                            ),
-                            dbc.Row(
-                                id="instrument-id-container",
-                                style={"display":"none"},
-                                children=[
-                                    dbc.Label("ID", html_for="instrument-id", width=6),
-                                    dbc.Col(
-                                        dbc.Input(
-                                            type="text", id="instrument-id", placeholder="ID of new instrument"
+                                            type="number", id="repair-number", value=0
                                         ),
                                         width=6,
                                     ),
@@ -67,10 +51,10 @@ layout = html.Div([
                             ),
                             dbc.Row(
                                 [
-                                    dbc.Label("Number", html_for="instrument-number", width=6),
+                                    dbc.Label("Owner*", html_for="repair-owner", width=6),
                                     dbc.Col(
                                         dbc.Input(
-                                            type="number", id="instrument-number", value=0
+                                            type="text", id="repair-owner", placeholder="Owner"
                                         ),
                                         width=6,
                                     ),
@@ -79,10 +63,10 @@ layout = html.Div([
                             ),
                             dbc.Row(
                                 [
-                                    dbc.Label("Owner", html_for="owner", width=6),
+                                    dbc.Label("Status*", html_for="repair-status", width=6),
                                     dbc.Col(
                                         dbc.Input(
-                                            type="text", id="owner", placeholder="Owner"
+                                            type="text", id="repair-status", placeholder="Status"
                                         ),
                                         width=6,
                                     ),
@@ -91,10 +75,10 @@ layout = html.Div([
                             ),
                             dbc.Row(
                                 [
-                                    dbc.Label("Storage Location", html_for="storage-location", width=6),
+                                    dbc.Label("Description", html_for="repair-description", width=6),
                                     dbc.Col(
-                                        dbc.Input(
-                                            type="text", id="storage-location", placeholder="Storage Location"
+                                        dbc.Textarea(
+                                            id="repair-description", placeholder="Description"
                                         ),
                                         width=6,
                                     ),
@@ -103,7 +87,7 @@ layout = html.Div([
                             ),
                             html.Hr(),
                             dbc.Row(
-                                dbc.Col(dbc.Button("Submit", id="submit-form-inventory", n_clicks=0, color="primary", disabled=True), width="auto"),
+                                dbc.Col(dbc.Button("Submit", id="submit-form-repair", n_clicks=0, color="primary", disabled=True), width="auto"),
                                 className="mb-3",
                             ),
                         ]
@@ -119,16 +103,14 @@ layout = html.Div([
 
 # Callback triggered automatically at app start
 @callback(
-    dash.Output('instrument-dropdown-inventory', 'options'),
-    [dash.Input('interval', 'n_intervals')]
+    dash.Output('instrument-dropdown-repair', 'options'),
+    [dash.Input('interval_add_repair', 'n_intervals')]
 )
 def update_content(n_intervals):
     if n_intervals == 0 or n_intervals == 1:
         instruments = get_inventory_instruments_number()  # Get the instruments DataFrame
         # Assuming instruments is a DataFrame with columns 'ID' and 'Number'
         options = [
-            {'label': "Define New", 'value': "New"},
-        ] + [
             {'label': f"{Name} ({ID})", 'value': f"{ID}"}
             for ID, Number, Name in zip(instruments['ID'], instruments['Number_sum'], instruments['Instrument name'])
         ]
@@ -136,55 +118,34 @@ def update_content(n_intervals):
     else:
         return [{'label': 'No instrument to show :('}]
 
-
 @callback(
     
-    dash.Output('submit-form-inventory', 'disabled'),
+    dash.Output('submit-form-repair', 'disabled'),
     [
-        dash.Input('instrument-dropdown-inventory', 'value'),   
-        dash.Input('instrument-name', 'value'),
-        dash.Input('instrument-id', 'value'),
-        dash.Input('instrument-number', 'value'),
+        dash.Input('instrument-dropdown-repair', 'value'),
+        dash.Input('repair-number', 'value'),
+        dash.Input('repair-owner', 'value'),
+        dash.Input('repair-status', 'value'),
     ],
 )
-def check_if_required_inputs_are_filledIn(selected_option, name, id, number):
-    if not selected_option or number == 0: 
-        return True
-    if selected_option == "New" and (not name or not id or number < 1):
+def check_if_required_inputs_are_filledIn(selected_option, number, owner, status):
+    if not selected_option or number == 0 or not owner or not status:
         return True
     return False
 
 @callback(
-    [
-        dash.Output('instrument-name-container', 'style'),
-        dash.Output('instrument-id-container', 'style')
-    ],
-    dash.Input('instrument-dropdown-inventory', 'value')
-)
-def toggle_name_and_id(selected_option):
-    if selected_option == "New":
-        return {}, {}  # returning for both elements. removes the style (display none will be removed)
-    else:
-        return {'display': 'none'} , {'display': 'none'} 
-
-@callback(
-    
     dash.Output('toast-store', 'data', allow_duplicate=True), 
-    
-    dash.Input('submit-form-inventory', 'n_clicks'),
-    dash.State('instrument-dropdown-inventory', 'value'),   
-    dash.State('instrument-name', 'value'),
-    dash.State('instrument-id', 'value'),
-    dash.State('instrument-number', 'value'),
-    dash.State('owner', 'value'), 
-    dash.State('storage-location', 'value'),
-   
+    dash.Input('submit-form-repair', 'n_clicks'),
+    dash.State('instrument-dropdown-repair', 'value'),   
+    dash.State('repair-number', 'value'),
+    dash.State('repair-owner', 'value'), 
+    dash.State('repair-status', 'value'),
+    dash.State('repair-description', 'value'),
     prevent_initial_call=True
 )
-def submit_form_inventory(n_clicks, selected_option, name_input, id_input, number, owner, 
-    location):
-    print('kir')
-    if n_clicks is None or n_clicks == 0 :
+def submit_form_repair(n_clicks, selected_option, number, owner, status, description):
+    print("submit repair", n_clicks)
+    if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     else:
         toast = {
@@ -193,30 +154,21 @@ def submit_form_inventory(n_clicks, selected_option, name_input, id_input, numbe
             'header': 'Success', 
             'icon': 'success'
         }
-        instruments = get_inventory_instruments_number()
-        if selected_option not in ["None", "New"]: 
-            Name = instruments.loc[instruments["ID"] == selected_option, "Instrument name"].values[0]
-            ID = selected_option
-        if selected_option == "New":
-            Name = name_input
-            ID = id_input
-        
         # Create the new inventory row
-        inventory_row = {
-            'Instrument name': Name,
-            'ID': ID,
-            'Number': number, 
-            'Number_sum': number,
+        repair_row = {
+            'ID': selected_option,
+            'Number': number,
             'Owner': owner,
-            'Storage location': location
+            'Status': status,
+            'Description': description
         }
 
-        response = add_to_table(inventory_row, "Inventory")
+        response = add_to_table(repair_row, "Inventory_Repair")
         if response["status"] == "success":
             # Show success message
             toast = {
                 'is_open': True, 
-                'message': 'Inventory created successfully!', 
+                'message': 'Repair report created successfully!', 
                 'header': 'Success', 
                 'icon': 'success'
             }
@@ -228,6 +180,6 @@ def submit_form_inventory(n_clicks, selected_option, name_input, id_input, numbe
                 'header': 'Failure', 
                 'icon': 'failure'
             }
-            
-        return toast
+    return toast
+   
    

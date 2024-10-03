@@ -4,7 +4,7 @@ from data.data import get_inventory, update_table, get_repairs
 import pandas as pd
 import dash_ag_grid as dag
 
-register_page(__name__, path="/inventory")  # Register a page at /page-2
+register_page(__name__, path="/repair")  # Register a page at /page-2
 
 
 tabs_styles = {
@@ -32,7 +32,7 @@ cell_style = {
 }  # Horizontally and vertically center the content
 
 def layout():
-    inventory = get_inventory()
+    repairs = get_repairs()
     return html.Div([
         html.Div(
             [
@@ -40,15 +40,15 @@ def layout():
                 html.Div([
                     dcc.Link(
                         dbc.Button(
-                            "Add Instrument", 
+                            "Add Repair", 
                             color="primary",  # Bootstrap button style
                             className="me-1"
                         ),
-                        href="/add-instrument"  # Set the path for the navigation
+                        href="/add-repair"  # Set the path for the navigation
                     ),
                     dbc.Button(
                         "Update Table",
-                        id="update-table-button-inventory",
+                        id="update-table-button-repairs",
                         color="dark",  # Bootstrap button style
                         className="me-1",
                         disabled=True,
@@ -60,28 +60,27 @@ def layout():
         ),
         dbc.Row([
             dag.AgGrid(
-                id="table-inventory-editable",
-                rowData=inventory.to_dict("records"),
+                id="table-repairs-editable",
+                rowData=repairs.to_dict("records"),
                 columnDefs=[
-                    {"field": i, "cellStyle": cell_style, "headerStyle": cell_style} for i in inventory.columns if i not in ['Number_sum']
+                    {"field": i, "cellStyle": cell_style, "headerStyle": cell_style} for i in repairs.columns if i not in ['Number_sum']
                 ],
                 defaultColDef={"filter": True, 'editable': True},
                 dashGridOptions={"pagination": True},
                 style={"minHeight":"800px"},
             ),
-            dcc.Store(id='table-inventory-editable-changes', data=[]),
+            dcc.Store(id='table-repairs-editable-changes', data=[]),
         ])
     ],style={"flex": "1"})
     
 
-
 @callback(
     [
-        Output('table-inventory-editable-changes', 'data'),
-        Output('update-table-button-inventory', 'disabled', allow_duplicate=True),
+        Output('table-repairs-editable-changes', 'data', allow_duplicate=True),
+        Output('update-table-button-repairs', 'disabled', allow_duplicate=True),
     ],
-    Input('table-inventory-editable', 'cellValueChanged'),
-    State('table-inventory-editable-changes', 'data'),
+    Input('table-repairs-editable', 'cellValueChanged'),
+    State('table-repairs-editable-changes', 'data'),
     prevent_initial_call=True
 )
 def track_table_changes(event, changes):
@@ -105,13 +104,13 @@ def track_table_changes(event, changes):
 @callback(
     [
         Output('toast-store', 'data', allow_duplicate=True),
-        Output('update-table-button-inventory', 'disabled')
+        Output('update-table-button-repairs', 'disabled', allow_duplicate=True)
     ],
-    Input('update-table-button-inventory', 'n_clicks'),
-    State('table-inventory-editable-changes', 'data'),
+    Input('update-table-button-repairs', 'n_clicks'),
+    State('table-repairs-editable-changes', 'data'),
     prevent_initial_call=True
 )
-def update_inventory_table(n_clicks, changes):
+def update_repairs_table(n_clicks, changes):
     toast = {
         'is_open': False, 
         'message': '', 
@@ -119,7 +118,7 @@ def update_inventory_table(n_clicks, changes):
         'icon': 'success'
     }
     if n_clicks > 0:
-        response = update_table(changes, "Inventory") # the function update_table is quite flexible if the sheetname is defined well
+        response = update_table(changes, "Inventory_Repair") # the function update_table is quite flexible if the sheetname is defined well
         if response["status"] == "success":
             # Show success message
             toast = {

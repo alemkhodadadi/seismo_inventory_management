@@ -1,17 +1,17 @@
 # /pages/page2.py
 from dash import html, register_page, callback, dcc
+from dash.exceptions import PreventUpdate
 import dash as dash
 import dash_bootstrap_components as dbc
 from dash_bootstrap_components import Row, Col, Label, Input
 from datetime import datetime
 import pandas as pd
-from data.data import get_inventory_instruments_number, add_project
-register_page(__name__, path="/add-project", name="Add project")  # Register a page at /create-project
+from data.data import get_inventory_instruments_number, add_to_table
+register_page(__name__, path="/add-project", name="Add project")  # Register a page at /add-project
 
 
 layout = html.Div([
     dcc.Interval(id='interval', interval=1, n_intervals=0, max_intervals=1),
-    html.Div(id="kirekhar",style={"display":"none"}),
     dbc.Form(
         dbc.Row(
             [
@@ -88,7 +88,7 @@ layout = html.Div([
                             ),
                             html.Hr(),
                             dbc.Row(
-                                dbc.Col(dbc.Button("Submit", id="submit-form", n_clicks=0, color="primary"), width="auto"),
+                                dbc.Col(dbc.Button("Submit", id="submit-form-project", n_clicks=0, color="primary"), width="auto"),
                                 className="mb-3",
                             ),
                         ]
@@ -124,7 +124,6 @@ layout = html.Div([
 def show_instruments_list(n_intervals):
     if n_intervals == 0 or n_intervals == 1:
         instruments = get_inventory_instruments_number()  # Get the instruments DataFrame
-        print("halalala", instruments)
         # Assuming instruments is a DataFrame with columns 'ID' and 'Number'
         divs = [
             dbc.Row(
@@ -152,7 +151,8 @@ def show_instruments_list(n_intervals):
     
     dash.Output('toast-store', 'data', allow_duplicate=True),  # Second output
     
-    dash.Input('submit-form', 'n_clicks'),
+    dash.Input('submit-form-project', 'n_clicks'),
+
     dash.State('project-name', 'value'),   
     dash.State('leading-institute', 'value'),
     dash.State('partner-institute', 'value'),
@@ -185,68 +185,68 @@ def show_instruments_list(n_intervals):
     dash.State('FORTIS', 'value'),
     prevent_initial_call=True
 )
-def submit_form(n_clicks, name, leading_inst, partner_inst, pickup, returnd, 
+def submit_form_project(n_clicks, name, leading_inst, partner_inst, pickup, returnd, 
     gsb3, gs_one5hz, gsx3, lhr, lv, bn25, bn32, dtm48, dtm24, dc, 
     bms12, toughbook, zbook, igu_16hr3c, smartsoloCharger, 
     smartsoloRack, magnet, sdrx, minimus, espc3, gnss, cablebb, 
     mascot, gelbattery, fortis):
-    print("submoit pressede", n_clicks)
-    # Convert the dates
-    pickup_date = pd.Timestamp(pickup)
-    return_date = pd.Timestamp(returnd)
-    
-    # Create the project data dictionary with instrument values
-    project_data = {
-        'Projects': name,
-        'Leading Institution': leading_inst,
-        'Partner institution(s)': partner_inst,
-        'pickup_date': pickup_date,
-        'return_date': return_date,
-        'GSB3': gsb3,
-        'GS-ONE5HZ': gs_one5hz,
-        'GSX3': gsx3,
-        'LHR': lhr,
-        'LV': lv,
-        'BN25': bn25,
-        'BN32': bn32,
-        'DTM48': dtm48,
-        'DTM24': dtm24,
-        'DC': dc,
-        'BMS12': bms12,
-        'TOUGHBOOK': toughbook,
-        'ZBOOK': zbook,
-        'IGU-16HR3C': igu_16hr3c,
-        'SmartsoloCharger': smartsoloCharger,
-        'SmartsoloRack': smartsoloRack,
-        'MAGNET': magnet,
-        'SDRX': sdrx,
-        'MINIMUS': minimus,
-        '3ESPC': espc3,
-        'GNSS': gnss,
-        'CABLEBB': cablebb,
-        'MASCOT': mascot,
-        'GELBATTERY': gelbattery,
-        'FORTIS': fortis
-    }
-
-    print("project_data is:", project_data)
-    response = add_project(project_data)
-    if response["status"] == "success":
-        # Show success message
-        toast = {
-            'is_open': True, 
-            'message': 'Project created successfully!', 
-            'header': 'Success', 
-            'icon': 'success'
-        }
-        return toast
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
     else:
-        # Handle the error
-        toast = {
-            'is_open': True, 
-            'message': 'There is something wrong!', 
-            'header': 'Failure', 
-            'icon': 'failure'
+        pickup_date = pd.Timestamp(pickup)
+        return_date = pd.Timestamp(returnd)
+        print("fuck!1", n_clicks)
+        # Create the project data dictionary with instrument values
+        project_data = {
+            'Projects': name,
+            'Leading Institution': leading_inst,
+            'Partner institution(s)': partner_inst,
+            'pickup_date': pickup_date,
+            'return_date': return_date,
+            'GSB3': gsb3,
+            'GS-ONE5HZ': gs_one5hz,
+            'GSX3': gsx3,
+            'LHR': lhr,
+            'LV': lv,
+            'BN25': bn25,
+            'BN32': bn32,
+            'DTM48': dtm48,
+            'DTM24': dtm24,
+            'DC': dc,
+            'BMS12': bms12,
+            'TOUGHBOOK': toughbook,
+            'ZBOOK': zbook,
+            'IGU-16HR3C': igu_16hr3c,
+            'SmartsoloCharger': smartsoloCharger,
+            'SmartsoloRack': smartsoloRack,
+            'MAGNET': magnet,
+            'SDRX': sdrx,
+            'MINIMUS': minimus,
+            '3ESPC': espc3,
+            'GNSS': gnss,
+            'CABLEBB': cablebb,
+            'MASCOT': mascot,
+            'GELBATTERY': gelbattery,
+            'FORTIS': fortis
         }
-        return toast
+
+        response = add_to_table(project_data, "Projects")
+        if response["status"] == "success":
+            # Show success message
+            toast = {
+                'is_open': True, 
+                'message': 'Project created successfully!', 
+                'header': 'Success', 
+                'icon': 'success'
+            }
+            return toast
+        else:
+            # Handle the error
+            toast = {
+                'is_open': True, 
+                'message': 'There is something wrong!', 
+                'header': 'Failure', 
+                'icon': 'failure'
+            }
+            return toast
     

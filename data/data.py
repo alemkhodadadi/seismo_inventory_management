@@ -48,26 +48,26 @@ def get_datepicker_dates():
     today = datetime.now()
     return earliest_pickup_date.strftime('%Y-%m-%d'), latest_return_date.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d') 
 
-def add_project(project_data):
+def add_to_table(data, sheet):
     try:
         # Check if the file exists before trying to read it
         if os.path.exists(filepath):
-            # Load the existing 'Projects' sheet into a DataFrame
-            projects_df = pd.read_excel(filepath, sheet_name='Projects', engine='openpyxl')
+            # Load the existing 'sheet' sheet into a DataFrame
+            dataframe = pd.read_excel(filepath, sheet_name=sheet, engine='openpyxl')
         else:
             # If the file doesn't exist, create an empty DataFrame with the columns similar to project_data
-            projects_df = pd.DataFrame(columns=project_data.keys())
+            dataframe = pd.DataFrame(columns=data.keys())
         
         # Convert project_data (dictionary) into a DataFrame row
-        new_row = pd.DataFrame([project_data])
+        new_row = pd.DataFrame([data])
         
         # Append the new project row to the existing DataFrame
-        updated_projects = pd.concat([projects_df, new_row], ignore_index=True)
+        updated_dataframe = pd.concat([dataframe, new_row], ignore_index=True)
         # Save the updated DataFrame back to the same Excel file
         with pd.ExcelWriter(filepath, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            updated_projects.to_excel(writer, sheet_name='Projects', index=False)
+            updated_dataframe.to_excel(writer, sheet_name=sheet, index=False)
         # Success response
-        return {"status": "success", "message": "Project created successfully!"}
+        return {"status": "success", "message": f"New row added to {sheet} successfully!"}
     
     except Exception as e:
         # Error response in case of any failure
@@ -91,7 +91,6 @@ def update_table(changes, sheetname):
         workbook = openpyxl.load_workbook(filepath)
         if sheetname not in workbook.sheetnames:
             return {"status": "error", "message": f"Sheet '{sheetname}' not found in the Excel file."}
-        print("fucki 3")
         sheet = workbook[sheetname]
 
         # Apply each change from the "changes" list
@@ -137,7 +136,6 @@ def update_table(changes, sheetname):
                 print(f"Deleted row {row_index}")
 
         # Save the updated workbook
-        print("before saving fucking")
         workbook.save(filepath)
         return {"status": "success", "message": "Excel file updated successfully."}
 
@@ -149,30 +147,3 @@ def update_table(changes, sheetname):
     
     except Exception as e:
         return {"status": "error", "message": f"An error occurred: {str(e)}"}
-
-
-def add_inventory(inventory_row):
-    try:
-        # Check if the file exists before trying to read it
-        if os.path.exists(filepath):
-            # Load the existing 'Projects' sheet into a DataFrame
-            inventory_df = pd.read_excel(filepath, sheet_name='Inventory', engine='openpyxl')
-        else:
-            # If the file doesn't exist, create an empty DataFrame with the columns similar to project_data
-            inventory_df = pd.DataFrame(columns=inventory_row.keys())
-        
-        # Convert inventory_row (dictionary) into a DataFrame row
-        new_row = pd.DataFrame([inventory_row])
-        
-        # Append the new project row to the existing DataFrame
-        updated_projects = pd.concat([inventory_df, new_row], ignore_index=True)
-        # Save the updated DataFrame back to the same Excel file
-        with pd.ExcelWriter(filepath, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            updated_projects.to_excel(writer, sheet_name='Inventory', index=False)
-        # Success response
-        return {"status": "success", "message": "Project created successfully!"}
-    
-    except Exception as e:
-        # Error response in case of any failure
-        return {"status": "error", "message": f"An error occurred: {str(e)}"}
-    

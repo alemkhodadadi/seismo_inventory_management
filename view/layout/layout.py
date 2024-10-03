@@ -11,6 +11,7 @@ def create_layout(df):
             dcc.Location(id="url"), 
             dbc.Row(    
                 [
+                    dbc.Input(id='dummy-input', value="dummy", style={"display": "none"}),
                     dbc.Col(
                         sidebar(), 
                         width=2, 
