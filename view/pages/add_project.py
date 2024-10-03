@@ -195,7 +195,6 @@ def submit_form_project(n_clicks, name, leading_inst, partner_inst, pickup, retu
     else:
         pickup_date = pd.Timestamp(pickup)
         return_date = pd.Timestamp(returnd)
-        print("fuck!1", n_clicks)
         # Create the project data dictionary with instrument values
         project_data = {
             'Projects': name,

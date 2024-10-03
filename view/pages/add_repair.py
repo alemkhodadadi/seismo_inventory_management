@@ -144,7 +144,6 @@ def check_if_required_inputs_are_filledIn(selected_option, number, owner, status
     prevent_initial_call=True
 )
 def submit_form_repair(n_clicks, selected_option, number, owner, status, description):
-    print("submit repair", n_clicks)
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     else:

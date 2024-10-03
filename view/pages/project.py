@@ -5,7 +5,7 @@ import pandas as pd
 import dash_ag_grid as dag
 from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability, create_pivot_table_for_heatmap
 
-register_page(__name__, path="/")  # Register the home page at the root path
+register_page(__name__, path="/project")  # Register the home page at the root path
 
 tabs_styles = {
     'height': '44px'
@@ -353,7 +353,6 @@ def delete_selected_rows(n_clicks, selected_rows):
 def make_apply_btn_active(start, end):
     return False
 
-
 @callback(
     [
         Output('custom-timeline', 'children'),  # Second output
@@ -363,8 +362,8 @@ def make_apply_btn_active(start, end):
     State('start-date-picker', 'date'),   # Get the value of the start date
     State('end-date-picker', 'date'),      # Get the value of the end date
     prevent_initial_call=True
-    
 )
+
 def check_dates(n_clicks, from_date, to_date):
     # Convert string dates to Timestamps
     start_period = pd.Timestamp(from_date)

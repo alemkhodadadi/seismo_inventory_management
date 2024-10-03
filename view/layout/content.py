@@ -3,21 +3,44 @@ from dash import page_container, html, callback
 from dash.dependencies import Input, Output
 import dash 
 
-CONTENT_STYLE = {
+CONTENT_TOP_STYLE = {
     "padding": "4rem",
+    "paddingBottom": "1rem",
+    "position": "sticky",
+    "top": "0px",
+    "zIndex": "9999", 
+    "backgroundColor": "white",
+    "boxShadow": "rgba(0, 0, 0, 0.25) 0px 2px 10px 0px"
+
+}
+
+CONTENT_BOTTOM_STYLE = {
+    "padding": "1rem"
+}
+
+CONTENT_STYLE = {
+    "overflow": "scroll", 
+    "maxHeight": "100vh",
 }
 # Content component with dynamic page container
 def content():
     return html.Div(
         [
             dbc.Row(
-                dbc.Col(
-                    html.H1(id='page-title'), 
-                    width=12
-                ),
+                [
+                    dbc.Col(
+                        html.H1(id='page-title'), 
+                        width=12,
+                    ),
+                ],
+                style=CONTENT_TOP_STYLE
             ),
+            
             dbc.Row(
-                page_container,  # This renders the page content based on the route
+                [
+                    page_container,  # This renders the page content based on the route
+                ],
+                style=CONTENT_BOTTOM_STYLE
             )
             
         ],

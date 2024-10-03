@@ -53,6 +53,24 @@ def create_heatmap(pivot_table, title):
         "-",  # Display "-" if Total is 0 (represented by -1)
         np.round(pivot_table.values, 0).astype(int).astype(str)  # Round to nearest integer and convert to string
     )
+    #colorscale is a 2-d array. if z component is divided by 4 values (0-25, 25-50, 50-75, 75-100)
+    # there should be 4 arrayes in the colorscale showing each portion in z . 
+    colorscale = [
+        [0, "rgb(255, 255, 178)"],
+        [0.25, "rgb(255, 255, 178)"],
+
+        [0.25, "rgb(254, 204, 92)"],
+        [0.50, "rgb(254, 204, 92)"],
+
+        [0.50, "rgb(253, 141, 60)"],
+        [0.75, "rgb(253, 141, 60)"],
+
+        [0.75, "rgb(240, 59, 32)"],
+        [0.99, "rgb(240, 59, 32)"],
+
+        [1, "rgb(189, 0, 38)"],
+    ]
+
     # Create the heatmap
     fig = go.Figure(data=go.Heatmap(
         z=pivot_table.values,  # Availability values
@@ -63,8 +81,7 @@ def create_heatmap(pivot_table, title):
         textfont={"size": 9},
         hoverinfo='text',  # Only show custom hover text
         hovertemplate='Instrument: %{y}<br>Time Slot: %{x}<br>Availability: %{text}<extra></extra>',  # Customize hover text
-        #colorscales=Blackbody,Bluered,Blues,Cividis,Earth,Electric,Greens,Greys,Hot,Jet,Picnic,Portland,Rainbow,RdBu,Reds,Viridis,YlGnBu,YlOrRd.
-        colorscale="YlOrRd",  # Color scale for availability (can be changed),
+        colorscale=colorscale,  # Color scale for availability (can be changed),
         zmin=0,  # Minimum color value (0% availability)
         zmax=100  # Maximum color value (100% availability)
     ))
