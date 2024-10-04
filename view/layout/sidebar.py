@@ -3,7 +3,7 @@ from dash import html
 SIDEBAR_STYLE = {
     "width": "100%",
     "backgroundColor": "#f8f9fa",
-
+    "height": "100%"
 }
 # Sidebar component with NavLinks for navigating between pages
 def sidebar():

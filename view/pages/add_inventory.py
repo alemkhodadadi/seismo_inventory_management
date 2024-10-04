@@ -183,7 +183,6 @@ def toggle_name_and_id(selected_option):
 )
 def submit_form_inventory(n_clicks, selected_option, name_input, id_input, number, owner, 
     location):
-    print('kir')
     if n_clicks is None or n_clicks == 0 :
         raise PreventUpdate
     else:

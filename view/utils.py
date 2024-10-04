@@ -4,7 +4,8 @@ import dash_bootstrap_components as dbc
 from dash import dcc
 import plotly.graph_objects as go
 import plotly.express as px
-import datetime
+from datetime import date, timedelta, datetime
+from data.data import get_projects, get_inventory_instruments_number
 import pandas as pd
 import numpy as np
 
@@ -92,13 +93,18 @@ def create_heatmap(pivot_table, title):
         autosize=True,
         height=1000,
         minreducedwidth=800,
+        margin=dict(
+            l=150,  # Left margin (space for y-axis labels)
+            r=150,   # Right margin
+        ),
+
     )
 
     return fig
 
-def create_pivot_table_for_heatmap(data, mode):
+def create_pivot_table_for_heatmap(data, avai_occ):
     # Create a pivot table to structure the data for the heatmap
-    if mode == 'Occupation':
+    if avai_occ == 'Occupation':
         data['Occupation'] = np.where(
             data['Total'] == 0, 
             -1,  # NaN will be replaced by "-" in the display
@@ -115,6 +121,25 @@ def create_pivot_table_for_heatmap(data, mode):
     
     return pivot_table
 
+
+def create_data_for_heatmap(start, end, avai_occ, slottype="week"):
+    print('create_data_for_heatmap called:', start, end, avai_occ, slottype)
+    inventory_numbers = get_inventory_instruments_number()
+    print(1)
+    print(start, end, slottype)
+    time_slots = create_timeslots(start, end, slottype=slottype)
+    print(2)
+    availability_table = generate_instrument_availability(inventory_numbers, time_slots)
+    print(3)
+    heatmap_data = create_pivot_table_for_heatmap(availability_table, avai_occ)
+    print('returning heatmap_data')
+    return heatmap_data
+
+def get_slot_index_of_period(periodstart, periodend, allslots):
+    slot_index_that_periodstart_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodstart <= pd.to_datetime(slot['end_date'])), None)
+    slot_index_that_periodend_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodend <= pd.to_datetime(slot['end_date'])), None)
+    return slot_index_that_periodstart_is_in, slot_index_that_periodend_is_in
+
 # Define the global toast as a function so it can be reused
 def global_toast():
     return dbc.Toast(
@@ -130,7 +155,7 @@ def global_toast():
             "left": "50%",  # Center the toast horizontally
             "transform": "translate(-50%, -50%)",  # Ensure it stays centered
             "width": "350px",
-            "zIndex": 9999  # Ensure it's on top
+            "zIndex": 9  # Ensure it's on top
         },
     )
 
@@ -138,7 +163,6 @@ def global_toast():
 def timeslots_for_projects(projects):
     # Extract and combine the pickup and return dates, then drop NaN values
     dates = pd.concat([pd.to_datetime(projects['pickup_date']), pd.to_datetime(projects['return_date'])]).dropna()
-    
     # Remove duplicates and sort the dates
     unique_dates = sorted(dates.drop_duplicates())
     
@@ -147,17 +171,19 @@ def timeslots_for_projects(projects):
     
     return time_slots
 
-def generate_instrument_availability(inventory, projects, time_slots):
+def generate_instrument_availability(inventory, time_slots):
     # Create an empty list to hold the final rows
     availability_data = []
-
+    projects = get_projects()
     # Iterate over all instruments in the inventory table
     for instrument_id in inventory['ID']:
         if instrument_id:
             # Get the total number of instruments for each instrument_id from the inventory
             total_instruments = int(inventory[inventory['ID'] == instrument_id]['Number_sum'].values[0])
             # Iterate over each time slot
-            for start, end in time_slots:
+            for i, timeslot in enumerate(time_slots):
+                start = timeslot["start_date"]
+                end = timeslot["end_date"]
                 # Filter projects that are active during the current time slot
                 active_projects = projects[
                     (projects['pickup_date'] <= end) & 
@@ -175,7 +201,7 @@ def generate_instrument_availability(inventory, projects, time_slots):
                 # Create a dictionary for each row in the final table
                 availability_data.append({
                     'Instrument': instrument_id,
-                    'Time Slot': f'{start.date()} - {end.date()}',
+                    'Time Slot': f'{start} - {end}',
                     'Total': total_instruments,
                     'Occupied': occupied_instruments,
                     'Available': available_instruments
@@ -185,3 +211,49 @@ def generate_instrument_availability(inventory, projects, time_slots):
     availability_df = pd.DataFrame(availability_data)
     
     return availability_df
+
+
+def create_timeslots(start_date, end_date, slottype='week'):
+    # List to hold the result
+    slots = []
+    if slottype == 'week':
+        # Get the first Monday on or after the start date
+        print('type is:', type(start_date))
+        start_date = start_date - timedelta(days=start_date.weekday())
+        
+        while start_date <= end_date:
+            week_number = start_date.isocalendar()[1]  # Get week number
+            year = start_date.isocalendar()[0]  # Get the year
+            period_end_date = start_date + timedelta(days=6)  # End of the week
+            slots.append({
+                'week': week_number,
+                'year': year,
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': min(period_end_date, end_date).strftime('%Y-%m-%d')
+            })
+            start_date += timedelta(weeks=1)  # Move to the next week
+
+    elif slottype == 'month':
+        # Align the start date to the first day of the current month
+        start_date = start_date.replace(day=1)
+        
+        while start_date <= end_date:
+            month_number = start_date.month  # Get month number
+            year = start_date.year  # Get the year
+            # Get the last day of the month
+            next_month = start_date.replace(day=28) + timedelta(days=4)  # Always get next month
+            period_end_date = (next_month - timedelta(days=next_month.day)).date()  # Last day of the current month
+            
+            # Convert period_end_date to datetime for comparison
+            period_end_date = datetime.combine(period_end_date, datetime.min.time())
+            
+            slots.append({
+                'month': month_number,
+                'year': year,
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': min(period_end_date, end_date).strftime('%Y-%m-%d')
+            })
+            # Move to the next month
+            start_date = (start_date + timedelta(days=32)).replace(day=1)
+
+    return slots

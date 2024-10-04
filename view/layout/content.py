@@ -8,18 +8,18 @@ CONTENT_TOP_STYLE = {
     "paddingBottom": "1rem",
     "position": "sticky",
     "top": "0px",
-    "zIndex": "9999", 
+    "zIndex": "99", 
     "backgroundColor": "white",
-    "boxShadow": "rgba(0, 0, 0, 0.25) 0px 2px 10px 0px"
-
+    "boxShadow": "rgba(0, 0, 0, 0.25) 0px 2px 10px 0px",
 }
 
 CONTENT_BOTTOM_STYLE = {
-    "padding": "1rem"
+    "padding": "3rem"
 }
 
 CONTENT_STYLE = {
-    "overflow": "scroll", 
+    "overflowY": "scroll", 
+    "overflowX": "hidden", 
     "maxHeight": "100vh",
 }
 # Content component with dynamic page container

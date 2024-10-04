@@ -15,12 +15,12 @@ def create_layout(df):
                     dbc.Col(
                         sidebar(), 
                         width=2, 
-                        class_name="pe-0"
+                        class_name="px-0"
                     ),
                     dbc.Col(
                         content(), 
                         width=10, 
-                        class_name="ps-0"
+                        class_name="px-0"
                     )    
                 ],
                 justify="between",
