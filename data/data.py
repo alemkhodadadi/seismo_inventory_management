@@ -21,6 +21,7 @@ def get_projects_timeline():
     projects_timeline = get_projects_table()
     projects_timeline['repeat'] = projects_timeline.groupby('Projects').cumcount() + 1
     projects_timeline['Name'] = projects_timeline.apply(lambda x: f"{x['Projects']} {x['repeat']-1}" if x['repeat'] > 1 else x['Projects'], axis=1)
+    projects_timeline['Name'] = projects_timeline['Name'].apply(lambda x: x[:12] + '...' if len(x) > 0 else x)
     return projects_timeline
 
 def get_inventory():

@@ -40,10 +40,32 @@ def create_gantt(
     fig.update_yaxes(autorange="reversed")
     fig.update_layout(
         xaxis_title='Timeline', 
-        xaxis=dict(dtick='M1'), font=dict(size=16),
+        xaxis=dict(
+            dtick='M1',
+            tickfont=dict(size=10),  # Set font size for labels
+            ticks='outside',  # Show tick marks outside
+            ticklen=10,  # Length of tick marks
+            tickwidth=2,  # Width of tick marks
+            tickcolor='black',  # Color of tick marks
+            automargin=True  # Automatically adjust margins to fit labels
+        ), 
+        font=dict(size=16),
         showlegend=False,
         autosize=True,
         minreducedwidth=800,
+        yaxis=dict(
+            title='',  # Remove y-axis title
+            tickfont=dict(size=10),  # Set font size for labels
+            ticks='outside',  # Show tick marks outside
+            ticklen=10,  # Length of tick marks
+            tickwidth=2,  # Width of tick marks
+            tickcolor='black',  # Color of tick marks
+            automargin=True  # Automatically adjust margins to fit labels
+        ),
+        margin=dict(
+            l=150,  # Left margin (space for y-axis labels)
+            r=150,   # Right margin
+        ),
     )
     # fig.show()
     return fig
@@ -97,6 +119,24 @@ def create_heatmap(pivot_table, title):
             l=150,  # Left margin (space for y-axis labels)
             r=150,   # Right margin
         ),
+        yaxis=dict(
+            title='',  # Remove y-axis title
+            tickfont=dict(size=10),  # Set font size for labels
+            ticks='outside',  # Show tick marks outside
+            ticklen=10,  # Length of tick marks
+            tickwidth=2,  # Width of tick marks
+            tickcolor='black',  # Color of tick marks
+            automargin=True  # Automatically adjust margins to fit labels
+        ),
+        xaxis=dict(
+            title='',  # Remove y-axis title
+            tickfont=dict(size=10),  # Set font size for labels
+            ticks='outside',  # Show tick marks outside
+            ticklen=10,  # Length of tick marks
+            tickwidth=2,  # Width of tick marks
+            tickcolor='black',  # Color of tick marks
+            automargin=True  # Automatically adjust margins to fit labels
+        ),
 
     )
 
@@ -136,6 +176,10 @@ def create_data_for_heatmap(start, end, avai_occ, slottype="week"):
     return heatmap_data
 
 def get_slot_index_of_period(periodstart, periodend, allslots):
+    #we have to set the time part of periodstart and periodend 
+    #to have a clean date comparison with the dates in the slots
+    periodstart = periodstart.replace(hour=0, minute=0, second=0, microsecond=0)
+    periodend = periodend.replace(hour=0, minute=0, second=0, microsecond=0)
     slot_index_that_periodstart_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodstart <= pd.to_datetime(slot['end_date'])), None)
     slot_index_that_periodend_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodend <= pd.to_datetime(slot['end_date'])), None)
     return slot_index_that_periodstart_is_in, slot_index_that_periodend_is_in
