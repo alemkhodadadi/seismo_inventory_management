@@ -7,6 +7,7 @@ filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pool.xlsx')
 
 def get_projects():
     projects = pd.read_excel(filepath, sheet_name='Projects')
+    projects['vid'] = projects.index # vid is virtual id. its used as a unique identifier for the tables
     projects['pickup_date'] = pd.to_datetime(projects['pickup_date'])
     projects['return_date'] = pd.to_datetime(projects['return_date'])
     return projects.copy()
@@ -26,6 +27,7 @@ def get_projects_timeline():
 
 def get_inventory():
     inventory = pd.read_excel(filepath, sheet_name='Inventory')
+    inventory['vid'] = inventory.index # vid is virtual id. its used as a unique identifier for the tables
     return inventory.copy()
 
 def get_inventory_instruments_number():
@@ -38,6 +40,7 @@ def get_inventory_instruments_number():
 
 def get_repairs():
     repairs = pd.read_excel(filepath, sheet_name='Inventory_Repair')
+    repairs['vid'] = repairs.index # vid is virtual id. its used as a unique identifier for the tables
     return repairs.copy()
 
 def get_datepicker_dates():

@@ -4,7 +4,7 @@ from data.data import get_projects, get_datepicker_dates, update_table, get_proj
 import pandas as pd
 import dash_ag_grid as dag
 from view.utils import create_gantt, create_heatmap, timeslots_for_projects, get_slot_index_of_period, create_timeslots, create_data_for_heatmap, generate_instrument_availability, create_pivot_table_for_heatmap
-from view.style import cell_style, tab_style, tabs_styles, tab_selected_style
+from view.styles import cell_style, tab_style, tabs_styles, tab_selected_style
 import numpy as np 
 
 register_page(__name__, path="/")  # Register the home page at the root path

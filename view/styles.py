@@ -14,7 +14,6 @@ tab_selected_style = {
     'color': 'white',
     'padding': '6px'
 }
-
 cell_style = {
     "textAlign": "center", 
     "display": "flex", 

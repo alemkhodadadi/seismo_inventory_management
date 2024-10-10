@@ -4,33 +4,9 @@ from data.data import get_projects, get_datepicker_dates, update_table, get_proj
 import pandas as pd
 import dash_ag_grid as dag
 from view.utils import create_gantt, create_heatmap, timeslots_for_projects, generate_instrument_availability, create_pivot_table_for_heatmap
+from view.styles import cell_style
 
 register_page(__name__, path="/project")  # Register the home page at the root path
-
-tabs_styles = {
-    'height': '44px'
-}
-
-tab_style = {
-    'borderBottom': '1px solid #d6d6d6',
-    'padding': '6px',
-    'fontWeight': 'bold'
-}
-tab_selected_style = {
-    'borderTop': '1px solid #d6d6d6',
-    'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
-    'color': 'white',
-    'padding': '6px'
-}
-
-cell_style = {
-    "textAlign": "center", 
-    "display": "flex", 
-    "justifyContent": "center", 
-    "alignItems": "center",
-    "borderRight": "1px solid lightgray",
-}  # Horizontally and vertically center the content
 
 def layout():
     projects_table = get_projects_table()
@@ -90,7 +66,7 @@ def layout():
                                 "field": column, 
                                 "cellStyle": cell_style, 
                                 "headerStyle": cell_style, 
-                                "maxWidth":150
+                                "maxWidth":75
                             } 
                             if i>4 else 
                             {
@@ -98,7 +74,7 @@ def layout():
                                 "cellStyle": cell_style, 
                                 "headerStyle": cell_style
                             } 
-                            for i, column in enumerate(projects_table.columns)
+                            for i, column in enumerate(projects_table.columns) if column not in ['vid']
                         ],
                         defaultColDef={"filter": True, 'editable': True},
                         dashGridOptions={"pagination": True, "rowSelection":"multiple"},

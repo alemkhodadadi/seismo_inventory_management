@@ -163,16 +163,10 @@ def create_pivot_table_for_heatmap(data, avai_occ):
 
 
 def create_data_for_heatmap(start, end, avai_occ, slottype="week"):
-    print('create_data_for_heatmap called:', start, end, avai_occ, slottype)
     inventory_numbers = get_inventory_instruments_number()
-    print(1)
-    print(start, end, slottype)
     time_slots = create_timeslots(start, end, slottype=slottype)
-    print(2)
     availability_table = generate_instrument_availability(inventory_numbers, time_slots)
-    print(3)
     heatmap_data = create_pivot_table_for_heatmap(availability_table, avai_occ)
-    print('returning heatmap_data')
     return heatmap_data
 
 def get_slot_index_of_period(periodstart, periodend, allslots):

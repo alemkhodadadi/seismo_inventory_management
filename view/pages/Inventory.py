@@ -1,6 +1,6 @@
 from dash import html, register_page, dcc, get_app, State, callback, Output, Input
 import dash_bootstrap_components as dbc
-from data.data import get_inventory, update_table, get_repairs
+from data.data import get_inventory, update_table
 import pandas as pd
 import dash_ag_grid as dag
 
@@ -54,25 +54,153 @@ def layout():
                         disabled=True,
                         n_clicks=0
                     ),
+                    dbc.Button(
+                        "Delete selected rows",
+                        id="delete-table-button-inventory",
+                        color="dark",  # Bootstrap button style
+                        className="me-1",
+                        disabled=True,
+                        n_clicks=0
+                    ),
                 ]),
                 html.Hr(),
             ]
         ),
         dbc.Row([
-            dag.AgGrid(
-                id="table-inventory-editable",
-                rowData=inventory.to_dict("records"),
-                columnDefs=[
-                    {"field": i, "cellStyle": cell_style, "headerStyle": cell_style} for i in inventory.columns if i not in ['Number_sum']
-                ],
-                defaultColDef={"filter": True, 'editable': True},
-                dashGridOptions={"pagination": True},
-                style={"minHeight":"800px"},
+            html.Div(
+                id="table-inventory-editable-container",
+                children=[ 
+                    dag.AgGrid(
+                        id="table-inventory-editable",
+                        rowData=inventory.to_dict("records"),
+                        columnDefs=[
+                            # its the code to create checkbox at the first column
+                            {
+                                "field": "Delete", 
+                                "checkboxSelection": True, 
+                                "headerCheckboxSelection": True, 
+                                "width": 50 
+                            },
+                        ]+[
+                            {
+                                "field": column, 
+                                "cellStyle": cell_style, 
+                                "headerStyle": cell_style, 
+                                "maxWidth":75
+                            } 
+                            if i>4 else 
+                            {
+                                "field": column, 
+                                "cellStyle": cell_style, 
+                                "headerStyle": cell_style
+                            } 
+                            for i, column in enumerate(inventory.columns) if column not in ['Number_sum', "vid"]
+                        ],
+                        defaultColDef={"filter": True, 'editable': True},
+                        dashGridOptions={"pagination": True},
+                        style={"minHeight":"800px"},
+                    ),
+                ]
             ),
             dcc.Store(id='table-inventory-editable-changes', data=[]),
         ])
     ],style={"flex": "1"})
     
+@callback(
+    Output("delete-table-button-inventory", "disabled"),
+    Input("table-inventory-editable", "selectedRows"),
+)
+def selected(selectedrows):
+    if selectedrows is not None and len(selectedrows) > 0:
+        return False
+    return True
+
+@callback(
+    [
+        Output('toast-store', 'data', allow_duplicate=True),
+        Output('table-inventory-editable-container', 'children', allow_duplicate=True),
+        Output("delete-table-button-inventory", "disabled", allow_duplicate=True),
+    ],
+    Input("delete-table-button-inventory", "n_clicks"),
+    State("table-inventory-editable", "selectedRows"),
+    prevent_initial_call=True
+)
+def delete_selected_rows(n_clicks, selected_rows):
+    toast = {
+        'is_open': False, 
+        'message': '', 
+        'header': 'Success :)', 
+        'icon': 'success'
+    }
+    disabled = True
+    
+    if n_clicks > 0 and len(selected_rows)>0:
+        inventory = get_inventory()
+        changes = []
+        print('inventory selected rows are:', selected_rows)
+        for row in selected_rows:
+            row_id = inventory[
+                (inventory['vid'] == row['vid'])
+            ].index
+            if not row_id.empty:  # Check if we found a matching row
+                change = {"rowIndex": row_id[0], "status": "delete", "row": row}  # Use the first matching index
+                changes.append(change)  # Append to the list of changes
+        response = update_table(changes, "Inventory")
+        if response["status"] == "success":
+            # Show success message
+            toast = {
+                'is_open': True, 
+                'message': 'Table updated successfully!', 
+                'header': 'Success :)', 
+                'icon': 'success'
+            }
+            
+        else:
+            print("error updating table:", response["status"])
+            # Handle the error
+            toast = {
+                'is_open': True, 
+                'message': 'There is something wrong!', 
+                'header': 'Failure :(', 
+                'icon': 'failure'
+            }
+            disabled = False
+        
+    inventory_table_after_update = get_inventory()
+    table = dag.AgGrid(
+        id="table-inventory-editable",
+        rowData=inventory_table_after_update.to_dict("records"),
+        columnDefs=
+        
+        [
+            # its the code to create checkbox at the first column
+            {
+                "field": "Delete", 
+                "checkboxSelection": True, 
+                "headerCheckboxSelection": True, 
+                "width": 50 
+            },
+        ]+
+        [
+            {
+                "field": column, 
+                "cellStyle": cell_style, 
+                "headerStyle": cell_style, 
+                "maxWidth":150
+            } 
+            if i>4 else 
+            {
+                "field": column, 
+                "cellStyle": cell_style, 
+                "headerStyle": cell_style
+            } 
+            for i, column in enumerate(inventory_table_after_update.columns) if column not in ['Number_sum', "vid"]
+        ],
+        defaultColDef={"filter": True, 'editable': True},
+        dashGridOptions={"pagination": True, "rowSelection":"multiple"},
+        style={"minHeight":"800px"},
+    ),
+    return toast, table, disabled
 
 
 @callback(
