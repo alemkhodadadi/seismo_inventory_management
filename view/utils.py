@@ -94,6 +94,8 @@ def create_heatmap(pivot_table, title):
         [1, "rgb(189, 0, 38)"],
     ]
 
+    print('columns are:', pivot_table.columns)
+
     # Create the heatmap
     fig = go.Figure(data=go.Heatmap(
         z=pivot_table.values,  # Availability values
@@ -159,6 +161,10 @@ def create_pivot_table_for_heatmap(data, avai_occ):
         )
         pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Availability')
     
+    pivot_table.columns = [
+        f"{pd.to_datetime(start).strftime('%y %b %d')} - {pd.to_datetime(end).strftime('%y %b %d')}"
+        for start, end in [col.split(' - ') for col in pivot_table.columns]
+    ]
     return pivot_table
 
 

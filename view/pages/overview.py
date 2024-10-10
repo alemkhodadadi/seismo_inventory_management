@@ -8,31 +8,44 @@ from view.styles import cell_style, tab_style, tabs_styles, tab_selected_style
 import numpy as np 
 
 register_page(__name__, path="/")  # Register the home page at the root path
+
+
+###############defining initial conditions for the data
 slottype = 'week' # week/month
 projects = get_projects()
 today = pd.Timestamp.today() 
+#we define a period with two optional dates for the data te be filtered at the beginning. 
+#it starts from the previous month and ends in 5 the next 5th month
 filtered_period_start = today - pd.DateOffset(months=1)
 filtered_period_end = today + pd.DateOffset(months=5)
 avai_status = 'Availability'
-
 # here we measure the start and end  for all projects in timeslots in length of week/month
 all_projects_start = pd.to_datetime(projects['pickup_date']).min()
 all_projects_end = pd.to_datetime(projects['return_date']).max()
-timeslots_all_projects = create_timeslots(all_projects_start, all_projects_end, slottype=slottype)
+###############
 
+
+###############creating data for availability heatmap
+#we create timeslots to use them as cells in the availability heatmap
+#1-timeslots for all projects (from beginning of first one to the end of the last one)
+timeslots_all_projects = create_timeslots(all_projects_start, all_projects_end, slottype=slottype)
+#Now we need to know that in which timeslots the
+#beginnign and the end of the filtering  period are
 first_value, second_value = get_slot_index_of_period(filtered_period_start, filtered_period_end, timeslots_all_projects)
-print('first and second value are:', first_value, second_value)
 #creating heatmap for the filtered period. the default filtered period is 6-month starts with one month before today and ends 5 month later than today
 data_heatmap_availability = create_data_for_heatmap(filtered_period_start, filtered_period_end, avai_occ=avai_status, slottype=slottype)
-
-
 slider_items = {i: slot['start_date'] for i, slot in enumerate(timeslots_all_projects)}
 step_size = max(1, len(slider_items) // 10)  # there are at least 10 marks
 slider_items_range = np.linspace(0, len(slider_items) - 1, num=10, dtype=int)  # Get 10 evenly spaced indices
 slider_labels = {int(i): slider_items[i] for i in slider_items_range}
 # print("date_items", date_items)
+################
 
+################generating data for the ganttchart
+#here we just need to filter the projects table based on the 
+#starttime and endtime of the optional filtering period
 projects_timeline = get_projects_timeline()
+projects_timeline = projects_timeline[pd.to_datetime(projects_timeline['return_date']) <= filtered_period_end]
 
 
 def layout():
@@ -43,9 +56,21 @@ def layout():
         dcc.Store(id='avai_status', data=avai_status),
         html.Div(
             [
-                html.P("Filters:"),
+
+                
+
                 html.Div(
                 [
+                    html.Div(
+                        [
+                            html.Span('Filtered period: ') ,
+                            html.Span(id="filtered-date-start-span", children=filtered_period_start.date().strftime('%d %B %Y'), className="mx-2 text-secondary font-weight-bold") ,
+                            html.Span('-'),
+                            html.Span(id="filtered-date-end-span", children=filtered_period_end.date().strftime('%d %B %Y'), className="mx-2 text-secondary font-weight-bold") ,
+                        ],
+                        style={"flexDirection": "row"},
+                        className="my-4"
+                    ),
                     dcc.RangeSlider(
                         id='date-range-slider',
                         min = 0, 
@@ -74,7 +99,7 @@ def layout():
 
                 ],style={"width":"100%", "paddingLeft": "150px", "paddingRight": "150px"}),
                 
-            ]
+            ],
         ),
         html.Hr(),
         html.Div(
@@ -199,7 +224,10 @@ def layout_old():
     [
         Output('filtered-dates-items', 'data'),
         Output('filtered-dates', 'data'),
-        Output('heatmap-container', 'children')
+        Output('filtered-date-start-span', 'children'),
+        Output('filtered-date-end-span', 'children'),
+        Output('heatmap-container', 'children'),
+        Output('gantt-container', 'children')
     ],
     Input('date-range-slider', 'value'),
     State('slottype', 'data'),
@@ -221,12 +249,28 @@ def update_output(values, slottype, status):
         slottype=slottype
     )
 
-    newchart = dcc.Graph(
+    projects_timeline = get_projects_timeline()
+    newprojects_timeline = projects_timeline[pd.to_datetime(projects_timeline['return_date']) <= new_filtered_period_end]
+
+    new_heatmap = dcc.Graph(
                     figure=create_heatmap(data_heatmap_availability, avai_status),
                     style={"width":"100%"}
                 ),
+    
+    new_ganttchart = dcc.Graph(
+                    figure=create_gantt(
+                        data=newprojects_timeline, 
+                        parameter_name="Name",
+                        start_column_name="pickup_date",
+                        end_column_name="return_date",
+                        color="Name",
+                        labels={'Sensor_Type': 'Sensor Type'},
+                    ),
+                ),
+    
 
-    return values, [new_filtered_period_start, new_filtered_period_end], newchart
+
+    return values, [new_filtered_period_start, new_filtered_period_end], new_filtered_period_start.date().strftime('%d %B %Y'), new_filtered_period_end.date().strftime('%d %B %Y'), new_heatmap, new_ganttchart
 
     print('new data is ', data_heatmap_availability)
 

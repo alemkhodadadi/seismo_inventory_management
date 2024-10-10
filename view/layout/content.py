@@ -14,7 +14,8 @@ CONTENT_TOP_STYLE = {
 }
 
 CONTENT_BOTTOM_STYLE = {
-    "padding": "3rem"
+    "paddingRight": "3rem",
+    "paddingLeft": "3rem"
 }
 
 CONTENT_STYLE = {
