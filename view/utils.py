@@ -70,7 +70,7 @@ def create_gantt(
     # fig.show()
     return fig
 
-def create_heatmap(pivot_table, title):
+def create_heatmap(pivot_table):
     availability_text = np.where(
         pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
         "-",  # Display "-" if Total is 0 (represented by -1)
@@ -94,8 +94,6 @@ def create_heatmap(pivot_table, title):
         [1, "rgb(189, 0, 38)"],
     ]
 
-    print('columns are:', pivot_table.columns)
-
     # Create the heatmap
     fig = go.Figure(data=go.Heatmap(
         z=pivot_table.values,  # Availability values
@@ -112,7 +110,6 @@ def create_heatmap(pivot_table, title):
     ))
 
     fig.update_layout(
-        title=title,
         xaxis_nticks=36,
         autosize=True,
         height=1000,
@@ -168,21 +165,46 @@ def create_pivot_table_for_heatmap(data, avai_occ):
     return pivot_table
 
 
-def create_data_for_heatmap(start, end, avai_occ, slottype="week"):
+def create_data_for_heatmap(start, end, availability, type, slottype="week"):
     inventory_numbers = get_inventory_instruments_number()
+    if type != 'All':
+        inventory_numbers = inventory_numbers[inventory_numbers['Type']==type]
     time_slots = create_timeslots(start, end, slottype=slottype)
     availability_table = generate_instrument_availability(inventory_numbers, time_slots)
-    heatmap_data = create_pivot_table_for_heatmap(availability_table, avai_occ)
+    heatmap_data = create_pivot_table_for_heatmap(availability_table, availability)
     return heatmap_data
 
 def get_slot_index_of_period(periodstart, periodend, allslots):
     #we have to set the time part of periodstart and periodend 
     #to have a clean date comparison with the dates in the slots
-    periodstart = periodstart.replace(hour=0, minute=0, second=0, microsecond=0)
-    periodend = periodend.replace(hour=0, minute=0, second=0, microsecond=0)
+    print(" we are at get_slot_index_of_period:", periodstart, periodend, len(allslots))
+    periodstart = pd.to_datetime(periodstart).replace(hour=0, minute=0, second=0, microsecond=0)
+    periodend = pd.to_datetime(periodend).replace(hour=0, minute=0, second=0, microsecond=0)
+    print('kir')
     slot_index_that_periodstart_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodstart <= pd.to_datetime(slot['end_date'])), None)
     slot_index_that_periodend_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodend <= pd.to_datetime(slot['end_date'])), None)
     return slot_index_that_periodstart_is_in, slot_index_that_periodend_is_in
+
+
+def get_rangeslider_data(period_slottype, filtered_period_start, filtered_period_end):
+    projects = get_projects()
+    all_projects_start = pd.to_datetime(projects['pickup_date']).min()
+    all_projects_end = pd.to_datetime(projects['return_date']).max()
+    #we create timeslots to use them as cells in the availability heatmap
+    #1-timeslots for all projects (from beginning of first one to the end of the last one)
+    timeslots_all_projects = create_timeslots(all_projects_start, all_projects_end, slottype=period_slottype)
+    #Now we need to know that in which timeslots the
+    #beginnign and the end of the filtering  period are
+    first_value, second_value = get_slot_index_of_period(filtered_period_start, filtered_period_end, timeslots_all_projects)
+    slider_items = {i: slot['start_date'] for i, slot in enumerate(timeslots_all_projects)}
+    slider_items_range = np.linspace(0, len(slider_items) - 1, num=10, dtype=int)  # Get 10 evenly spaced indices
+    slider_labels = {int(i): slider_items[i] for i in slider_items_range}
+    print('items created:', len(timeslots_all_projects), first_value, second_value, slider_items)
+    return timeslots_all_projects, first_value, second_value, slider_labels
+
+
+
+
 
 # Define the global toast as a function so it can be reused
 def global_toast():
@@ -262,7 +284,6 @@ def create_timeslots(start_date, end_date, slottype='week'):
     slots = []
     if slottype == 'week':
         # Get the first Monday on or after the start date
-        print('type is:', type(start_date))
         start_date = start_date - timedelta(days=start_date.weekday())
         
         while start_date <= end_date:

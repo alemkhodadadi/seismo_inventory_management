@@ -34,7 +34,8 @@ def get_inventory_instruments_number():
     inventory = get_inventory()
     summarized_inventory = inventory.groupby('ID', as_index=False).agg({
         'Number_sum': 'sum',
-        'Instrument name': 'first'  # or you could use 'last' or 'max' depending on your requirement
+        'Instrument name': 'first',  # or you could use 'last' or 'max' depending on your requirement
+        'Type': 'first'
     })
     return summarized_inventory
 

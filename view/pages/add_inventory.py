@@ -79,6 +79,24 @@ layout = html.Div([
                             ),
                             dbc.Row(
                                 [
+                                    dbc.Label("Type", html_for="instrument-dropdown-type", width=6),
+                                    dbc.Col(
+                                        dcc.Dropdown(
+                                            id='instrument-dropdown-type',
+                                            options=[
+                                                {'label': "Instrument", 'value': "Instrument"},
+                                                {'label': "Accessory", 'value': "Accessory"},
+                                            ],
+                                            value="None",  # Default value
+                                            placeholder="Select an option",
+                                        ),
+                                        width=6,
+                                    )
+                                ],
+                                className="mb-3 justify-content-between align-items-center",
+                            ),
+                            dbc.Row(
+                                [
                                     dbc.Label("Owner", html_for="owner", width=6),
                                     dbc.Col(
                                         dbc.Input(
@@ -142,15 +160,16 @@ def update_content(n_intervals):
     dash.Output('submit-form-inventory', 'disabled'),
     [
         dash.Input('instrument-dropdown-inventory', 'value'),   
+        dash.Input('instrument-dropdown-type', 'value'), 
         dash.Input('instrument-name', 'value'),
         dash.Input('instrument-id', 'value'),
         dash.Input('instrument-number', 'value'),
     ],
 )
-def check_if_required_inputs_are_filledIn(selected_option, name, id, number):
-    if not selected_option or number == 0: 
+def check_if_required_inputs_are_filledIn(selected_option, type, name, id, number):
+    if not selected_option or not type or number == 0: 
         return True
-    if selected_option == "New" and (not name or not id or number < 1):
+    if selected_option == "New" and (not name or not id or not type or number < 1):
         return True
     return False
 
@@ -176,12 +195,13 @@ def toggle_name_and_id(selected_option):
     dash.State('instrument-name', 'value'),
     dash.State('instrument-id', 'value'),
     dash.State('instrument-number', 'value'),
+    dash.State('instrument-dropdown-type', 'value'),   
     dash.State('owner', 'value'), 
     dash.State('storage-location', 'value'),
    
     prevent_initial_call=True
 )
-def submit_form_inventory(n_clicks, selected_option, name_input, id_input, number, owner, 
+def submit_form_inventory(n_clicks, selected_option, name_input, id_input, number, type, owner, 
     location):
     if n_clicks is None or n_clicks == 0 :
         raise PreventUpdate
@@ -206,6 +226,7 @@ def submit_form_inventory(n_clicks, selected_option, name_input, id_input, numbe
             'ID': ID,
             'Number': number, 
             'Number_sum': number,
+            'Type': type,
             'Owner': owner,
             'Storage location': location
         }
