@@ -1,9 +1,8 @@
-from dash import html, register_page, dcc, get_app, State, callback, Output, Input
+from dash import html, register_page, dcc, State, callback, Output, Input
 import dash_bootstrap_components as dbc
-from data.data import get_projects, get_datepicker_dates, update_table, get_projects_table, get_inventory_instruments_number, get_projects_timeline
+from data.data import get_projects, get_datepicker_dates, get_projects_timeline
 import pandas as pd
-import dash_ag_grid as dag
-from view.utils import create_gantt, create_heatmap, get_rangeslider_data, get_slot_index_of_period, create_timeslots, create_data_for_heatmap, generate_instrument_availability, create_pivot_table_for_heatmap
+from view.utils import create_gantt, create_heatmap, get_rangeslider_data
 from view.styles import cell_style, tab_style, tabs_styles, tab_selected_style
 import numpy as np 
 
@@ -11,31 +10,32 @@ register_page(__name__, path="/")  # Register the home page at the root path
 
 
 ###############defining initial conditions for the data
-period_slottype = 'week' # week/month
 projects = get_projects()
 today = pd.Timestamp.today() 
 #we define a period with two optional dates for the data te be filtered at the beginning. 
 #it starts from the previous month and ends in 5 the next 5th month
 filtered_period_start = today - pd.DateOffset(months=1)
-print('intial filtered_period_start is:', filtered_period_start)
 filtered_period_end = today + pd.DateOffset(months=5)
+#1-slottype, 2-instrument-type, 3-instrument-availability and 4-filtered-dates
+period_slottype = 'month' # week/month
 instrument_availability = 'Availability'
 instrument_type = 'All'
 
-timeslots_all_projects, first_value, second_value, slider_labels = get_rangeslider_data(
-    period_slottype, 
-    filtered_period_start, 
+timeslots_all_projects, rangeslider_val_1, rangeslider_val_2, slider_labels = get_rangeslider_data(
+    period_slottype,
+    filtered_period_start,
     filtered_period_end
 )
 
 #creating heatmap for the filtered period. the default filtered period is 6-month starts with one month before today and ends 5 month later than today
-data_heatmap_availability = create_data_for_heatmap(
+initial_heatmap = create_heatmap(
     filtered_period_start, 
     filtered_period_end, 
     type=instrument_type,
     availability=instrument_availability, 
     slottype=period_slottype
 )
+
 
 ################generating data for the ganttchart
 #here we just need to filter the projects table based on the 
@@ -47,11 +47,11 @@ projects_timeline = projects_timeline[pd.to_datetime(projects_timeline['return_d
 def layout():
     return html.Div([
         dcc.Store(id='filtered-dates', data=[filtered_period_start, filtered_period_end]),
-        dcc.Store(id='filtered-dates-items', data=[first_value, second_value]),
+        dcc.Store(id='filtered-dates-items', data=[rangeslider_val_1, rangeslider_val_2]),
         dcc.Store(id='period_slottype', data=period_slottype),
         dcc.Store(id='instrument_availability', data=instrument_availability),
         dcc.Store(id='instrument_type', data=instrument_type),
-        dcc.Store(id='instrument_type', data=instrument_type),
+        dcc.Store(id='timeslots_all_projects', data=timeslots_all_projects),
         html.Div(
             [
                 html.Div(
@@ -74,7 +74,7 @@ def layout():
                                 min = 0, 
                                 max = len(timeslots_all_projects) -1,
                                 step = 1,
-                                value=[first_value, second_value],
+                                value=[rangeslider_val_1, rangeslider_val_2],
                                 marks=slider_labels,
                                 className="px-0"
                             ),
@@ -89,7 +89,7 @@ def layout():
                                         {'label': 'Weekly', 'value': 'week'},
                                         {'label': 'Monthly', 'value': 'month'},
                                     ],
-                                    value='week',  # Default value
+                                    value=period_slottype,  # Default value
                                 ),
                                 width=3
                             ),
@@ -128,7 +128,7 @@ def layout():
             id="heatmap-container",
             children=[
                 dcc.Graph(
-                    figure=create_heatmap(data_heatmap_availability),
+                    figure=initial_heatmap,
                     style={"width":"100%"}
                 ),
             ]
@@ -161,20 +161,21 @@ def layout():
         Output('gantt-container', 'children')
     ],
     Input('date-range-slider', 'value'),
+    State('timeslots_all_projects', 'data'),
     State('period_slottype', 'data'),
     State('instrument_availability', 'data'),
     State('instrument_type', 'data')
 )
-def update_output(values, period_slottype, availability, type):
-    print('date-range-slider changed', values)
+def update_output(values, timeslots_all_projects, period_slottype, availability, type):
     # Convert the slider int values back to dates
     start_index_in_slots = values[0]
     end_index_in_slots = values[1]
+
     new_filtered_period_start = pd.to_datetime(timeslots_all_projects[start_index_in_slots]["start_date"])
     new_filtered_period_end = pd.to_datetime(timeslots_all_projects[end_index_in_slots]["end_date"])
-    print([new_filtered_period_start, new_filtered_period_end])
+
     #creating the data for heatmap based on new dates
-    data_heatmap_availability = create_data_for_heatmap(
+    new_heatmap_fig = create_heatmap(
         new_filtered_period_start, 
         new_filtered_period_end, 
         availability=availability, 
@@ -186,7 +187,7 @@ def update_output(values, period_slottype, availability, type):
     newprojects_timeline = projects_timeline[pd.to_datetime(projects_timeline['return_date']) <= new_filtered_period_end]
 
     new_heatmap = dcc.Graph(
-                    figure=create_heatmap(data_heatmap_availability),
+                    figure=new_heatmap_fig,
                     style={"width":"100%"}
                 ),
     
@@ -263,41 +264,49 @@ def check_dates(n_clicks, from_date, to_date):
         Output('filtered-date-start-span', 'children', allow_duplicate=True),
         Output('filtered-date-end-span', 'children', allow_duplicate=True),
         Output('period_slottype', 'data'),
+        Output('timeslots_all_projects', 'data', allow_duplicate=True),
     ],
     
-    Input('dropdown-period-slottype', 'value'),
-    State('dropdown-instruments-type', 'value'),
+    Input('dropdown-period-slottype', 'value'), # if we have any change in slottype dropdown, this functions will be called
+    State('dropdown-instruments-type', 'value'), # it takes the value of 1-slottype, 2-instrument-type, 3-instrument-availability and 4-filtered-dates
     State('dropdown-instruments-availability', 'value'),
     State('filtered-dates', 'data'),
     prevent_initial_call = True
 )
 def change_period_slottype(selected_option, type, availability, dates):
-    data_heatmap_availability = create_data_for_heatmap(pd.to_datetime(dates[0]), pd.to_datetime(dates[1]), availability=availability, type=type, slottype=selected_option)
+    new_heatmap_fig = create_heatmap(
+        pd.to_datetime(dates[0]), 
+        pd.to_datetime(dates[1]), 
+        availability=availability, 
+        type=type, slottype=selected_option
+    )
     
-    timeslots_all_projects, first_value, second_value, slider_labels = get_rangeslider_data(
+    new_timeslots_all_projects, new_rangeslider_val_1, rangeslider_val_2, new_slider_labels = get_rangeslider_data(
         selected_option, 
         pd.to_datetime(dates[0]), 
         pd.to_datetime(dates[1])
     )
 
+
     new_rangeslider = dcc.RangeSlider(
         id='date-range-slider',
-        min = 0, 
-        max = len(timeslots_all_projects) -1,
+        min = 0,
+        max = len(new_timeslots_all_projects) -1,
         step = 1,
-        value=[first_value, second_value],
-        marks=slider_labels,
+        value=[new_rangeslider_val_1, rangeslider_val_2],
+        marks=new_slider_labels,
         className="px-0"
     ),
+
     new_heatmap = dcc.Graph(
-        figure=create_heatmap(data_heatmap_availability),
+        figure=new_heatmap_fig,
         style={"width":"100%"}
     )
 
     new_text_filtering_start = html.Span(id="filtered-date-start-span", children=pd.to_datetime(dates[0]).date().strftime('%d %B %Y'), className="mx-2 text-secondary font-weight-bold") ,
     new_text_filtering_end = html.Span(id="filtered-date-end-span", children=pd.to_datetime(dates[1]).date().strftime('%d %B %Y'), className="mx-2 text-secondary font-weight-bold") ,
 
-    return new_rangeslider, new_heatmap, new_text_filtering_start, new_text_filtering_end, selected_option
+    return new_rangeslider, new_heatmap, new_text_filtering_start, new_text_filtering_end, selected_option, new_timeslots_all_projects
 
 @callback(
     [
@@ -313,9 +322,14 @@ def change_period_slottype(selected_option, type, availability, dates):
 )
 def change_heatmap_mode(selected_option, type, slottype, dates):
 
-    data_heatmap_availability = create_data_for_heatmap(pd.to_datetime(dates[0]), pd.to_datetime(dates[1]), availability=selected_option, type=type, slottype=slottype)
+    heatmap = create_heatmap(pd.to_datetime(
+        dates[0]), 
+        pd.to_datetime(dates[1]), 
+        availability=selected_option, 
+        type=type, slottype=slottype
+    )
     return dcc.Graph(
-        figure=create_heatmap(data_heatmap_availability),
+        figure=heatmap,
         style={"width":"100%"}
     ), selected_option
 
@@ -332,9 +346,14 @@ def change_heatmap_mode(selected_option, type, slottype, dates):
     prevent_initial_call = True
 )
 def change_heatmap_mode(selected_option, availability, slottype, dates):
-    heatmap_data = create_data_for_heatmap(pd.to_datetime(dates[0]), pd.to_datetime(dates[1]), availability=availability, type=selected_option, slottype=slottype)
+    new_heatmap_fig = create_heatmap(
+        pd.to_datetime(dates[0]), 
+        pd.to_datetime(dates[1]), 
+        availability=availability, 
+        type=selected_option, slottype=slottype
+    )
     return dcc.Graph(
-        figure=create_heatmap(heatmap_data),
+        figure=new_heatmap_fig,
         style={"width":"100%"}
     ), selected_option
 

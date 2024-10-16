@@ -70,12 +70,20 @@ def create_gantt(
     # fig.show()
     return fig
 
-def create_heatmap(pivot_table):
+def create_heatmap(start, end, availability, type, slottype="week"):
+    inventory_numbers = get_inventory_instruments_number()
+    if type != 'All':
+        inventory_numbers = inventory_numbers[inventory_numbers['Type']==type]
+    time_slots = create_timeslots(start, end, slottype=slottype)
+    availability_table = generate_instrument_availability(inventory_numbers, time_slots)
+    pivot_table, hoverdata = create_pivot_table_for_heatmap(availability_table, availability)
+
     availability_text = np.where(
         pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
         "-",  # Display "-" if Total is 0 (represented by -1)
         np.round(pivot_table.values, 0).astype(int).astype(str)  # Round to nearest integer and convert to string
     )
+
     #colorscale is a 2-d array. if z component is divided by 4 values (0-25, 25-50, 50-75, 75-100)
     # there should be 4 arrayes in the colorscale showing each portion in z . 
     colorscale = [
@@ -139,30 +147,42 @@ def create_heatmap(pivot_table):
 
     )
 
+    fig.update_traces(
+        hovertemplate="<b>Instrument: %{y}</b><br>" +
+                    "<b>Time Slot: %{x}</b><br>" +
+                    "Available: %{customdata[2]}<br>"+
+                    "Total: %{customdata[0]}<br>" +
+                    "Occupied: %{customdata[1]}<extra></extra>" ,
+        customdata=hoverdata
+)
+
     return fig
 
 def create_pivot_table_for_heatmap(data, avai_occ):
+    print(data)
     # Create a pivot table to structure the data for the heatmap
     if avai_occ == 'Occupation':
         data['Occupation'] = np.where(
             data['Total'] == 0, 
             -1,  # NaN will be replaced by "-" in the display
-            (1 - (data['Available'] / data['Total'])) * 100  # Calculate occupation as the opposite of availability
+            data['Occupied'] # Calculate occupation as the opposite of availability
         )
         pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Occupation')
     else:  # Default case for 'availability'
         data['Availability'] = np.where(
             data['Total'] == 0, 
             -1,  # NaN will be replaced by "-" in the display
-            (data['Available'] / data['Total']) * 100
+            data['Available']
         )
         pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Availability')
     
+    hoverdata = data[['Total', 'Occupied', 'Available']].values.reshape(pivot_table.shape[0], pivot_table.shape[1], -1)
+
     pivot_table.columns = [
         f"{pd.to_datetime(start).strftime('%y %b %d')} - {pd.to_datetime(end).strftime('%y %b %d')}"
         for start, end in [col.split(' - ') for col in pivot_table.columns]
     ]
-    return pivot_table
+    return pivot_table, hoverdata
 
 
 def create_data_for_heatmap(start, end, availability, type, slottype="week"):
@@ -177,10 +197,8 @@ def create_data_for_heatmap(start, end, availability, type, slottype="week"):
 def get_slot_index_of_period(periodstart, periodend, allslots):
     #we have to set the time part of periodstart and periodend 
     #to have a clean date comparison with the dates in the slots
-    print(" we are at get_slot_index_of_period:", periodstart, periodend, len(allslots))
     periodstart = pd.to_datetime(periodstart).replace(hour=0, minute=0, second=0, microsecond=0)
     periodend = pd.to_datetime(periodend).replace(hour=0, minute=0, second=0, microsecond=0)
-    print('kir')
     slot_index_that_periodstart_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodstart <= pd.to_datetime(slot['end_date'])), None)
     slot_index_that_periodend_is_in = next((i for i, slot in enumerate(allslots) if pd.to_datetime(slot['start_date']) <= periodend <= pd.to_datetime(slot['end_date'])), None)
     return slot_index_that_periodstart_is_in, slot_index_that_periodend_is_in
@@ -195,12 +213,11 @@ def get_rangeslider_data(period_slottype, filtered_period_start, filtered_period
     timeslots_all_projects = create_timeslots(all_projects_start, all_projects_end, slottype=period_slottype)
     #Now we need to know that in which timeslots the
     #beginnign and the end of the filtering  period are
-    first_value, second_value = get_slot_index_of_period(filtered_period_start, filtered_period_end, timeslots_all_projects)
+    rangeslider_val_1, rangeslider_val_2 = get_slot_index_of_period(filtered_period_start, filtered_period_end, timeslots_all_projects)
     slider_items = {i: slot['start_date'] for i, slot in enumerate(timeslots_all_projects)}
     slider_items_range = np.linspace(0, len(slider_items) - 1, num=10, dtype=int)  # Get 10 evenly spaced indices
     slider_labels = {int(i): slider_items[i] for i in slider_items_range}
-    print('items created:', len(timeslots_all_projects), first_value, second_value, slider_items)
-    return timeslots_all_projects, first_value, second_value, slider_labels
+    return timeslots_all_projects, rangeslider_val_1, rangeslider_val_2, slider_labels
 
 
 
