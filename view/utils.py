@@ -183,14 +183,14 @@ def create_pivot_table_for_heatmap(data, avai_occ, slottype):
     # if slottype is "week", it shows the week number and the year, if the slottype is "month"
     # it shows the month name and the year
     if slottype == 'week':
-        pivot_table_values.columns = [
+        pivot_table_percentage.columns = [
             f"week {pd.Timestamp(start).week} - {pd.Timestamp(start).year}"
-            for start, end in [col.split(' - ') for col in pivot_table_values.columns]
+            for start, end in [col.split(' - ') for col in pivot_table_percentage.columns]
         ]
     elif slottype == 'month':
-        pivot_table_values.columns = [
+        pivot_table_percentage.columns = [
             f"{pd.Timestamp(start).strftime('%B')} - {pd.Timestamp(start).year}"
-            for start, end in [col.split(' - ') for col in pivot_table_values.columns]
+            for start, end in [col.split(' - ') for col in pivot_table_percentage.columns]
         ]
     return pivot_table_values, pivot_table_percentage, hoverdata
 
