@@ -86,14 +86,9 @@ def create_heatmap(start, end, availability, type, slottype="week"):
     # HEre we create two heatmap. one is pivot_table which is the main heatmap, second is a pivot_table with the 
     # same shape as the first one but containing  additional information for each cell. then we will put them 
     # together to have one heatmap
-    pivot_table, hoverdata = create_pivot_table_for_heatmap(availability_table, availability, slottype)
-
-    # we show "-" when the total number is 0
-    availability_text = np.where(
-        pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
-        "-",  # Display "-" if Total is 0 (represented by -1)
-        np.round(pivot_table.values, 0).astype(int).astype(str)  # Round to nearest integer and convert to string
-    )
+    pivot_table_values, pivot_table_percentage, other_data = create_pivot_table_for_heatmap(availability_table, availability, slottype)
+    print('pivot_table_percentage is:', pivot_table_percentage)
+    availability_text = np.round(pivot_table_values.values, 0).astype(int).astype(str)
 
     #colorscale is a 2-d array. if z component is divided by 4 values (0-25, 25-50, 50-75, 75-100)
     # there should be 4 arrayes in the colorscale showing each portion in z . 
@@ -115,9 +110,9 @@ def create_heatmap(start, end, availability, type, slottype="week"):
 
     # Create the heatmap
     fig = go.Figure(data=go.Heatmap(
-        z=pivot_table.values,  # Availability values
-        x=pivot_table.columns,  # Time slots (x-axis)
-        y=pivot_table.index,  # Instruments (y-axis)
+        z=pivot_table_percentage.values,  # Availability values
+        x=pivot_table_percentage.columns,  # Time slots (x-axis)
+        y=pivot_table_percentage.index,  # Instruments (y-axis)
         text=availability_text,  # Show availability values as text on the heatmap
         texttemplate="%{text}",
         textfont={"size": 9},
@@ -126,8 +121,8 @@ def create_heatmap(start, end, availability, type, slottype="week"):
         colorscale=colorscale,  # Color scale for availability (can be changed),
         zmin=0,  # Minimum color value (0% availability)
         zmax=100,  # Maximum color value (100% availability),
-        xgap=2,  # Horizontal gap between cells
-        ygap=2   # Vertical gap between cells
+        xgap=1,  # Horizontal gap between cells
+        ygap=1   # Vertical gap between cells
     ))
 
     fig.update_layout(
@@ -166,7 +161,7 @@ def create_heatmap(start, end, availability, type, slottype="week"):
             "Available: %{customdata[2]}<br>"+
             "Total: %{customdata[0]}<br>" +
             "Occupied: %{customdata[1]}<extra></extra>",
-        customdata=hoverdata
+        customdata=other_data
 )
 
     return fig
@@ -174,36 +169,30 @@ def create_heatmap(start, end, availability, type, slottype="week"):
 def create_pivot_table_for_heatmap(data, avai_occ, slottype):
     # Create a pivot table to structure the data for the heatmap
     if avai_occ == 'Occupation':
-        data['Occupation'] = np.where(
-            data['Total'] == 0, 
-            -1,  # NaN will be replaced by "-" in the display
-            data['Occupied'] # Calculate occupation as the opposite of availability
-        )
-        pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Occupation')
+        data['Percentage'] = data['Occupied']/data['Total']*100
+        pivot_table_values = data.pivot_table(index='Instrument', columns='Time Slot', values='Occupied')
+        pivot_table_percentage = data.pivot_table(index='Instrument', columns='Time Slot', values='Percentage')
     else:  # Default case for 'availability'
-        data['Availability'] = np.where(
-            data['Total'] == 0, 
-            -1,  # NaN will be replaced by "-" in the display
-            data['Available']
-        )
-        pivot_table = data.pivot_table(index='Instrument', columns='Time Slot', values='Availability')
+        data['Percentage'] = data['Available']/data['Total']*100
+        pivot_table_values = data.pivot_table(index='Instrument', columns='Time Slot', values='Available')
+        pivot_table_percentage = data.pivot_table(index='Instrument', columns='Time Slot', values='Percentage')
     
-    hoverdata = data[['Total', 'Occupied', 'Available']].values.reshape(pivot_table.shape[0], pivot_table.shape[1], -1)
+    hoverdata = data[['Total', 'Occupied', 'Available']].values.reshape(pivot_table_values.shape[0], pivot_table_values.shape[1], -1)
 
-    #here we define the text for each timeslot. this text is gonna be shown on the x-axis of the table
+    # here we define the text for each timeslot. this text is gonna be shown on the x-axis of the table
     # if slottype is "week", it shows the week number and the year, if the slottype is "month"
     # it shows the month name and the year
     if slottype == 'week':
-        pivot_table.columns = [
+        pivot_table_values.columns = [
             f"week {pd.Timestamp(start).week} - {pd.Timestamp(start).year}"
-            for start, end in [col.split(' - ') for col in pivot_table.columns]
+            for start, end in [col.split(' - ') for col in pivot_table_values.columns]
         ]
     elif slottype == 'month':
-        pivot_table.columns = [
+        pivot_table_values.columns = [
             f"{pd.Timestamp(start).strftime('%B')} - {pd.Timestamp(start).year}"
-            for start, end in [col.split(' - ') for col in pivot_table.columns]
+            for start, end in [col.split(' - ') for col in pivot_table_values.columns]
         ]
-    return pivot_table, hoverdata
+    return pivot_table_values, pivot_table_percentage, hoverdata
 
 
 def get_slot_index_of_period(periodstart, periodend, allslots):
