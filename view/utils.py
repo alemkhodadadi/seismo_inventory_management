@@ -76,7 +76,7 @@ def create_heatmap(start, end, availability, type, slottype="week"):
         inventory_numbers = inventory_numbers[inventory_numbers['Type']==type]
     time_slots = create_timeslots(start, end, slottype=slottype)
     availability_table = generate_instrument_availability(inventory_numbers, time_slots)
-    pivot_table, hoverdata = create_pivot_table_for_heatmap(availability_table, availability)
+    pivot_table, hoverdata = create_pivot_table_for_heatmap(availability_table, availability, slottype)
 
     availability_text = np.where(
         pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
@@ -158,7 +158,7 @@ def create_heatmap(start, end, availability, type, slottype="week"):
 
     return fig
 
-def create_pivot_table_for_heatmap(data, avai_occ):
+def create_pivot_table_for_heatmap(data, avai_occ, slottype):
     print(data)
     # Create a pivot table to structure the data for the heatmap
     if avai_occ == 'Occupation':
@@ -178,21 +178,19 @@ def create_pivot_table_for_heatmap(data, avai_occ):
     
     hoverdata = data[['Total', 'Occupied', 'Available']].values.reshape(pivot_table.shape[0], pivot_table.shape[1], -1)
 
-    pivot_table.columns = [
-        f"{pd.to_datetime(start).strftime('%y %b %d')} - {pd.to_datetime(end).strftime('%y %b %d')}"
-        for start, end in [col.split(' - ') for col in pivot_table.columns]
-    ]
+    print('pivot is:', pivot_table)
+    if slottype == 'week':
+        pivot_table.columns = [
+            f"week {pd.Timestamp(start).week} - {pd.Timestamp(start).year}"
+            for start, end in [col.split(' - ') for col in pivot_table.columns]
+        ]
+    elif slottype == 'month':
+        pivot_table.columns = [
+            f"{pd.Timestamp(start).strftime('%B')} - {pd.Timestamp(start).year}"
+            for start, end in [col.split(' - ') for col in pivot_table.columns]
+        ]
     return pivot_table, hoverdata
 
-
-def create_data_for_heatmap(start, end, availability, type, slottype="week"):
-    inventory_numbers = get_inventory_instruments_number()
-    if type != 'All':
-        inventory_numbers = inventory_numbers[inventory_numbers['Type']==type]
-    time_slots = create_timeslots(start, end, slottype=slottype)
-    availability_table = generate_instrument_availability(inventory_numbers, time_slots)
-    heatmap_data = create_pivot_table_for_heatmap(availability_table, availability)
-    return heatmap_data
 
 def get_slot_index_of_period(periodstart, periodend, allslots):
     #we have to set the time part of periodstart and periodend 
