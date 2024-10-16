@@ -74,10 +74,21 @@ def create_heatmap(start, end, availability, type, slottype="week"):
     inventory_numbers = get_inventory_instruments_number()
     if type != 'All':
         inventory_numbers = inventory_numbers[inventory_numbers['Type']==type]
+
+    #based on the filtered period and the slottype, it creates a list of slots to feed the information of 
+    # the instruments into them
     time_slots = create_timeslots(start, end, slottype=slottype)
+
+    # it creates a table based on the timeslots and the information about the number of instruments in the pool.
+    #this table is used to show the instruments availability at each timeslot
     availability_table = generate_instrument_availability(inventory_numbers, time_slots)
+
+    # HEre we create two heatmap. one is pivot_table which is the main heatmap, second is a pivot_table with the 
+    # same shape as the first one but containing  additional information for each cell. then we will put them 
+    # together to have one heatmap
     pivot_table, hoverdata = create_pivot_table_for_heatmap(availability_table, availability, slottype)
 
+    # we show "-" when the total number is 0
     availability_text = np.where(
         pivot_table.values == -1,  # Check if Availability is -1 (Total is 0)
         "-",  # Display "-" if Total is 0 (represented by -1)
@@ -114,7 +125,9 @@ def create_heatmap(start, end, availability, type, slottype="week"):
         hovertemplate='Instrument: %{y}<br>Time Slot: %{x}<br>Availability: %{text}<extra></extra>',  # Customize hover text
         colorscale=colorscale,  # Color scale for availability (can be changed),
         zmin=0,  # Minimum color value (0% availability)
-        zmax=100  # Maximum color value (100% availability)
+        zmax=100,  # Maximum color value (100% availability),
+        xgap=2,  # Horizontal gap between cells
+        ygap=2   # Vertical gap between cells
     ))
 
     fig.update_layout(
@@ -149,17 +162,16 @@ def create_heatmap(start, end, availability, type, slottype="week"):
 
     fig.update_traces(
         hovertemplate="<b>Instrument: %{y}</b><br>" +
-                    "<b>Time Slot: %{x}</b><br>" +
-                    "Available: %{customdata[2]}<br>"+
-                    "Total: %{customdata[0]}<br>" +
-                    "Occupied: %{customdata[1]}<extra></extra>" ,
+            "<b>Time Slot: %{x}</b><br>" +
+            "Available: %{customdata[2]}<br>"+
+            "Total: %{customdata[0]}<br>" +
+            "Occupied: %{customdata[1]}<extra></extra>",
         customdata=hoverdata
 )
 
     return fig
 
 def create_pivot_table_for_heatmap(data, avai_occ, slottype):
-    print(data)
     # Create a pivot table to structure the data for the heatmap
     if avai_occ == 'Occupation':
         data['Occupation'] = np.where(
@@ -178,7 +190,9 @@ def create_pivot_table_for_heatmap(data, avai_occ, slottype):
     
     hoverdata = data[['Total', 'Occupied', 'Available']].values.reshape(pivot_table.shape[0], pivot_table.shape[1], -1)
 
-    print('pivot is:', pivot_table)
+    #here we define the text for each timeslot. this text is gonna be shown on the x-axis of the table
+    # if slottype is "week", it shows the week number and the year, if the slottype is "month"
+    # it shows the month name and the year
     if slottype == 'week':
         pivot_table.columns = [
             f"week {pd.Timestamp(start).week} - {pd.Timestamp(start).year}"
@@ -246,7 +260,6 @@ def timeslots_for_projects(projects):
     dates = pd.concat([pd.to_datetime(projects['pickup_date']), pd.to_datetime(projects['return_date'])]).dropna()
     # Remove duplicates and sort the dates
     unique_dates = sorted(dates.drop_duplicates())
-    
     # Create time slots by pairing consecutive dates
     time_slots = [(unique_dates[i], unique_dates[i + 1]) for i in range(len(unique_dates) - 1)]
     
